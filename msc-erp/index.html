@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSC KOREA : HB-ERP Advance</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Outfit:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <!-- SheetJS for Excel Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="app-wrapper">
+        <header class="main-header">
+            <div class="logo">
+                <span class="msc">MSC</span><span class="korea">KOREA</span>
+            </div>
+            <h1>HB-ERP <span class="badge">ADVANCE</span></h1>
+            <div class="header-actions">
+                <button id="btn-show-setup" class="btn-icon">⚙️ CONFIG</button>
+            </div>
+        </header>
+
+        <div class="dashboard-stack">
+            <!-- Top: Data Entry -->
+            <aside class="entry-section glass">
+                <div class="section-header">
+                    <h2><span class="icon">📝</span> Data Management</h2>
+                    <div class="actions">
+                        <label for="excel-upload" class="btn-icon" title="Upload Excel">
+                            <span>📂 Upload Excel</span>
+                            <input type="file" id="excel-upload" accept=".xlsx, .xls" hidden>
+                        </label>
+                        <button id="btn-add-row" class="btn-small">+ Add Row</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="entry-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>POL</th>
+                                <th>POD</th>
+                                <th>BL No.</th>
+                                <th>Container</th>
+                                <th>D-Vessel</th>
+                                <th>D-Date</th>
+                                <th>L-Vessel</th>
+                                <th>L-Date</th>
+                                <th>Item</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="entry-tbody">
+                            <!-- Rows dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="footer-actions">
+                    <button id="btn-bulk-save" class="btn-primary">SYNC ALL TO CLOUD</button>
+                </div>
+            </aside>
+
+            <!-- Bottom: Search/Lookup -->
+            <section class="lookup-section glass">
+                <div class="section-header">
+                    <h2><span class="icon">🔍</span> Intelligence Lookup</h2>
+                </div>
+
+                <div class="search-grid">
+                    <div class="search-item main-search">
+                        <label>Global Search (BL, CNTR, Vessel)</label>
+                        <div class="search-input-group">
+                            <input type="text" id="global-search" placeholder="Enter keywords...">
+                            <button id="btn-search">SEARCH</button>
+                        </div>
+                    </div>
+                    <div class="search-item">
+                        <label>POL Search</label>
+                        <div class="search-input-group">
+                            <input type="text" id="pol-search" placeholder="Port of Loading">
+                            <button id="btn-pol-search">Go</button>
+                        </div>
+                    </div>
+                    <div class="search-item">
+                        <label>POD Search</label>
+                        <div class="search-input-group">
+                            <input type="text" id="pod-search" placeholder="Port of Discharge">
+                            <button id="btn-pod-search">Go</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="search-results" class="results-container">
+                    <div class="empty-state">
+                        <p>Search results will appear here</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bottom: Full DB Display -->
+            <section class="db-section glass">
+                <div class="section-header">
+                    <div class="header-main">
+                        <h2><span class="icon">💾</span> MASTER DATABASE LOG</h2>
+                        <div class="db-stats">
+                            <span class="stat-badge total">ALL <span id="db-count">0</span></span>
+                            <span class="stat-badge type-e">E <span id="db-count-e">0</span></span>
+                            <span class="stat-badge type-i">I <span id="db-count-i">0</span></span>
+                            <span class="stat-badge type-t">T <span id="db-count-t">0</span></span>
+                        </div>
+                    </div>
+                    <button id="btn-refresh-db" class="btn-small">🔄 REFRESH</button>
+                </div>
+                <div class="table-container full-db-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>POL</th>
+                                <th>POD</th>
+                                <th>BL No.</th>
+                                <th>Container</th>
+                                <th>D-Vessel</th>
+                                <th>D-Date</th>
+                                <th>L-Vessel</th>
+                                <th>L-Date</th>
+                                <th>Item</th>
+                                <th>Synced</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="db-tbody">
+                            <!-- All records dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div id="toast" class="toast hidden"></div>
+
+        <!-- Setup Modal -->
+        <div id="setup-modal" class="modal-overlay hidden">
+            <div class="modal-content glass">
+                <h3>🛠️ FIREBASE CONFIGURATION</h3>
+                <p>Please enter your Firebase Web Config to initialize the app.</p>
+                <div class="setup-form">
+                    <div class="input-field">
+                        <label>API Key</label>
+                        <input type="text" id="cfg-apiKey" placeholder="AIzaSy...">
+                    </div>
+                    <div class="input-field">
+                        <label>Auth Domain</label>
+                        <input type="text" id="cfg-authDomain" placeholder="xxx.firebaseapp.com">
+                    </div>
+                    <div class="input-field">
+                        <label>Project ID</label>
+                        <input type="text" id="cfg-projectId" placeholder="your-project-id">
+                    </div>
+                    <div class="input-field">
+                        <label>Storage Bucket</label>
+                        <input type="text" id="cfg-storageBucket" placeholder="xxx.firebasestorage.app">
+                    </div>
+                    <div class="input-field">
+                        <label>Messaging Sender ID</label>
+                        <input type="text" id="cfg-messagingSenderId" placeholder="123456789">
+                    </div>
+                    <div class="input-field">
+                        <label>App ID</label>
+                        <input type="text" id="cfg-appId" placeholder="1:123456:web:xxxx">
+                    </div>
+                    <div class="input-field">
+                        <label>Measurement ID (Optional)</label>
+                        <input type="text" id="cfg-measurementId" placeholder="G-XXXXXX">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="btn-save-setup" class="btn-primary">SAVE & RESTART</button>
+                    <button id="btn-close-setup" class="btn-small">CLOSE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Logic -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

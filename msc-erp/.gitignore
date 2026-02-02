@@ -1,0 +1,10 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Private config (if any remains)
+secrets.js
+.env
+
+# VS Code
+.vscode/
