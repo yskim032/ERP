@@ -1,29 +1,22 @@
+const firebaseConfig = {
+    apiKey: "AIzaSyAA80QnVq8NHkIVo-Xe3VGNaQ7NhKhqp7w",
+    authDomain: "ys-hb-epr.firebaseapp.com",
+    projectId: "ys-hb-epr",
+    storageBucket: "ys-hb-epr.firebasestorage.app",
+    messagingSenderId: "208094301061",
+    appId: "1:208094301061:web:f0db6046b582ce916552ec",
+    measurementId: "G-FF0F04R35K"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+console.log("✅ Firebase initialized with hardcoded config.");
+
 /**
- * Firebase Config - Dynamic Loader
- * Hides private keys from source code (GitHub)
+ * Helper to allow manual overrides via UI if needed
  */
 function getFirebaseConfig() {
     const saved = localStorage.getItem('msc_erp_firebase_config');
-    if (!saved) return null;
-    try {
-        return JSON.parse(saved);
-    } catch (e) {
-        return null;
-    }
-}
-
-// Initialize only if config exists
-const firebaseConfig = getFirebaseConfig();
-let db = null;
-
-if (firebaseConfig) {
-    try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        console.log("✅ Firebase initialized from local storage.");
-    } catch (e) {
-        console.error("❌ Firebase init error:", e);
-    }
-} else {
-    console.warn("⚠️ No Firebase configuration found. Please run setup.");
+    return saved ? JSON.parse(saved) : firebaseConfig;
 }

@@ -388,9 +388,5 @@ btnCloseSetup.addEventListener('click', closeSetupModal);
 btnSaveSetup.addEventListener('click', saveSetup);
 
 // Init
-if (!db) {
-    showSetupModal();
-} else {
-    createRow();
-    fetchAllRecords();
-}
+createRow();
+fetchAllRecords();
