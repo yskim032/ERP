@@ -687,7 +687,7 @@ button {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 @media (max-width: 1024px) {
@@ -715,6 +715,10 @@ button {
     justify-content: center;
     align-items: center;
     animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay.hidden {
+    display: none !important;
 }
 
 .modal-content {
