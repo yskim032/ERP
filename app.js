@@ -35,10 +35,14 @@ const detailContent = document.getElementById('detail-content');
 const btnCopyAll = document.getElementById('btn-copy-all');
 const btnScheduleCaseOnly = document.getElementById('btn-schedule-case-only');
 const btnScheduleShowAll = document.getElementById('btn-schedule-show-all');
+const ledText = document.getElementById('led-text');
 
 // --- State ---
 let rowCount = 0;
 let allScheduleRows = []; // Cache for Live Schedule filtering
+let ledRotationIndex = 0;
+let ledRecords = [];
+let ledInterval = null;
 
 // --- Functions ---
 
@@ -532,6 +536,8 @@ async function fetchAllRecords() {
             dbTbody.appendChild(tr);
         });
 
+        updateLedTicker(snapshot.docs.map(d => d.data()));
+
         // Update count UI
         dbCount.textContent = countTotal;
         if (dbCountE) dbCountE.textContent = countE;
@@ -815,6 +821,67 @@ Remark: ${data.remark || '-'}
 
 function closeDetailModal() {
     detailModal.classList.add('hidden');
+}
+
+/**
+ * LED Ticker Logic
+ */
+function updateLedTicker(records) {
+    if (ledInterval) clearInterval(ledInterval);
+
+    // Filter records with valid dates and calculate proximity
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const validRecords = [];
+    records.forEach(r => {
+        const dates = [r.d_date, r.l_date].filter(d => d);
+        dates.forEach(dateStr => {
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                const diffDays = Math.abs((targetDate - today) / (1000 * 60 * 60 * 24));
+                validRecords.push({
+                    vessel: (dateStr === r.d_date ? r.d_vessel : r.l_vessel) || 'N/A',
+                    date: dateStr,
+                    bl: r.bl_no || 'N/A',
+                    container: r.container_no || 'N/A',
+                    diff: diffDays
+                });
+            }
+        });
+    });
+
+    // Sort by proximity and take top 3
+    ledRecords = validRecords.sort((a, b) => a.diff - b.diff).slice(0, 3);
+
+    if (ledRecords.length === 0) {
+        ledText.innerHTML = "No upcoming shipments found.";
+        ledText.className = "led-text led-green";
+        return;
+    }
+
+    ledRotationIndex = 0;
+    rotateLedMessage();
+    ledInterval = setInterval(rotateLedMessage, 10000); // Rotate every 10 seconds
+}
+
+function rotateLedMessage() {
+    if (ledRecords.length === 0) return;
+
+    const record = ledRecords[ledRotationIndex];
+    const colors = ['led-green', 'led-yellow', 'led-orange'];
+    const colorClass = colors[ledRotationIndex % colors.length];
+
+    ledText.innerHTML = `🚨 URGENT: [${record.vessel}] [${record.date}] BL:[${record.bl}] CNTR:[${record.container}] - PLEASE PROCESS ASAP 🚨`;
+    ledText.className = `led-text ${colorClass}`;
+
+    // Restart animation
+    ledText.style.animation = 'none';
+    ledText.offsetHeight; // trigger reflow
+    ledText.style.animation = null;
+
+    ledRotationIndex = (ledRotationIndex + 1) % ledRecords.length;
 }
 
 /**
