@@ -179,6 +179,97 @@ body {
     transform: scale(1.1);
 }
 
+.type-badge {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border: 1px solid transparent;
+}
+
+.type-badge.badge-e {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.type-badge.badge-i {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.type-badge.badge-t {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.pdf-drop-zone {
+    width: 40px;
+    height: 32px;
+    border: 2px dashed var(--glass-border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8rem;
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.pdf-drop-zone.dragover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: var(--primary);
+    transform: scale(1.05);
+}
+
+.pdf-drop-zone.has-file {
+    border-style: solid;
+    border-color: var(--msc-yellow);
+    background: rgba(255, 204, 0, 0.1);
+    color: var(--msc-yellow);
+}
+
+.pdf-drop-zone .file-name {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-dark);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+.pdf-drop-zone:hover .file-name {
+    display: block;
+}
+
+.btn-pdf-link {
+    color: var(--msc-yellow);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.btn-pdf-link:hover {
+    text-decoration: underline;
+}
+
 /* Ensure table doesn't cut off action column */
 .table-container {
     width: 100%;

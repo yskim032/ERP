@@ -8,10 +8,20 @@ const firebaseConfig = {
     measurementId: "G-FF0F04R35K"
 };
 
+// Firebase Configuration helper
+function getFirebaseConfig() {
+    const saved = localStorage.getItem('msc_erp_firebase_config');
+    return saved ? JSON.parse(saved) : firebaseConfig;
+}
+
+const activeConfig = getFirebaseConfig();
+
 // Initialize Firebase (Compat Version)
-firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(activeConfig);
 const db = firebase.firestore();
-console.log("✅ Firebase initialized with hardcoded config.");
+const storage = firebase.storage();
+console.log("🚀 Firebase & Storage initialized with " + (localStorage.getItem('msc_erp_firebase_config') ? "Manual" : "Default") + " Config.");
+console.log("📂 Storage Bucket:", activeConfig.storageBucket);
 
 /**
  * Helper to allow manual overrides via UI if needed
