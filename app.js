@@ -27,6 +27,13 @@ const btnSaveSetup = document.getElementById('btn-save-setup');
 
 const toast = document.getElementById('toast');
 
+// --- Live Schedule Elements ---
+const btnLiveSchedule = document.getElementById('btn-live-schedule');
+const scheduleTbody = document.getElementById('schedule-tbody');
+const detailModal = document.getElementById('detail-modal');
+const detailContent = document.getElementById('detail-content');
+const btnCopyAll = document.getElementById('btn-copy-all');
+
 // --- State ---
 let rowCount = 0;
 
@@ -608,6 +615,165 @@ function saveSetup() {
     location.reload();
 }
 
+/**
+ * Live Schedule Logic
+ */
+async function handleLiveSchedule() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (!text.trim()) {
+            showToast("⚠️ Clipboard is empty.");
+            return;
+        }
+
+        const lines = text.trim().split('\n');
+        const rows = [];
+
+        // Skip header if present (look for Vessel Voyage keywords)
+        let startIndex = 0;
+        if (lines[0].toLowerCase().includes('vessel') && lines[0].toLowerCase().includes('voyage')) {
+            startIndex = 1;
+        }
+
+        for (let i = startIndex; i < lines.length; i++) {
+            // Split by tabs and filter out empty strings to handle "ghost" columns
+            const cols = lines[i].split('\t').map(c => c.trim()).filter(c => c.length > 0);
+            if (cols.length < 3) continue; // Need at least Vessel, Voyage, and Arrival
+
+            const vessel = cols[0];
+            const voyage = cols[1] || "";
+            const arrivalRaw = cols[2] || "";
+            const departureRaw = cols[3] || "";
+            const service = cols[4] || "";
+
+            rows.push({
+                displayVessel: `${vessel} ${voyage}`.trim(),
+                searchVessel: vessel,
+                arrival: normalizeScheduleDate(arrivalRaw),
+                departure: normalizeScheduleDate(departureRaw),
+                service: service
+            });
+        }
+
+        if (rows.length === 0) {
+            showToast("⚠️ No valid schedule data found in clipboard.");
+            return;
+        }
+
+        renderScheduleTable(rows);
+    } catch (err) {
+        console.error("Clipboard error:", err);
+        showToast("❌ Permission denied or clipboard error.");
+    }
+}
+
+function normalizeScheduleDate(dateStr) {
+    if (!dateStr) return "-";
+    // Format: "Fr 30/01/2026 03:48" -> "2026-01-30"
+    const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (match) {
+        return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+    return dateStr;
+}
+
+async function renderScheduleTable(rows) {
+    scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Processing...</td></tr>';
+
+    const htmlRows = await Promise.all(rows.map(async (row) => {
+        const matches = await matchVesselRecords(row.searchVessel);
+        const badges = matches.map(m => `
+            <span class="spare-badge badge-${m.type.toLowerCase()}" 
+                  onclick='showRecordDetail(${JSON.stringify(m).replace(/'/g, "&apos;")})'
+                  title="Click to view details">
+                ${m.type}
+            </span>
+        `).join('');
+
+        return `
+            <tr>
+                <td style="color:var(--msc-yellow); font-weight:700;">${row.displayVessel}</td>
+                <td>${row.arrival}</td>
+                <td>${row.departure}</td>
+                <td style="font-size:0.8rem;">${row.service}</td>
+                <td>${badges || '<span style="opacity:0.3">-</span>'}</td>
+            </tr>
+        `;
+    }));
+
+    scheduleTbody.innerHTML = htmlRows.join('');
+    showToast(`✅ Loaded ${rows.length} schedule items.`);
+}
+
+async function matchVesselRecords(vesselName) {
+    const query = vesselName.trim().toUpperCase();
+    const results = [];
+
+    // We search both D-Vessel and L-Vessel
+    const queries = [
+        db.collection("erp_v2").where("d_vessel", "==", query).get(),
+        db.collection("erp_v2").where("l_vessel", "==", query).get()
+    ];
+
+    const snapshots = await Promise.all(queries);
+    const idSet = new Set();
+
+    snapshots.forEach(snapshot => {
+        snapshot.docs.forEach(doc => {
+            if (!idSet.has(doc.id)) {
+                idSet.add(doc.id);
+                results.push({ ...doc.data(), id: doc.id });
+            }
+        });
+    });
+
+    return results;
+}
+
+function showRecordDetail(data) {
+    const dateStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : '-';
+
+    detailContent.innerHTML = `
+        <div class="detail-grid">
+            <div class="detail-item"><span class="detail-label">Type:</span><span class="detail-value">${data.type}</span></div>
+            <div class="detail-item"><span class="detail-label">POL:</span><span class="detail-value">${data.pol}</span></div>
+            <div class="detail-item"><span class="detail-label">POD:</span><span class="detail-value">${data.pod}</span></div>
+            <div class="detail-item"><span class="detail-label">BL No:</span><span class="detail-value">${data.bl_no}</span></div>
+            <div class="detail-item"><span class="detail-label">Container:</span><span class="detail-value" style="color:var(--msc-yellow)">${data.container_no}</span></div>
+            <div class="detail-item"><span class="detail-label">D-Vessel:</span><span class="detail-value">${data.d_vessel} (${data.d_date || '-'})</span></div>
+            <div class="detail-item"><span class="detail-label">L-Vessel:</span><span class="detail-value">${data.l_vessel} (${data.l_date || '-'})</span></div>
+            <div class="detail-item"><span class="detail-label">Item:</span><span class="detail-value">${data.item_name}</span></div>
+            <div class="detail-item"><span class="detail-label">Remark:</span><span class="detail-value">${data.remark || '-'}</span></div>
+            <div class="detail-item"><span class="detail-label">Synced:</span><span class="detail-value">${dateStr}</span></div>
+        </div>
+    `;
+
+    btnCopyAll.onclick = () => {
+        const text = `
+ERP RECORD DETAIL
+-----------------
+Type: ${data.type}
+POL: ${data.pol}
+POD: ${data.pod}
+BL No: ${data.bl_no}
+Container: ${data.container_no}
+D-Vessel: ${data.d_vessel} (${data.d_date})
+L-Vessel: ${data.l_vessel} (${data.l_date})
+Item: ${data.item_name}
+Remark: ${data.remark || '-'}
+-----------------
+`.trim();
+        navigator.clipboard.writeText(text);
+        showToast("📋 Copied to clipboard!");
+    };
+
+    detailModal.classList.remove('hidden');
+}
+
+function closeDetailModal() {
+    detailModal.classList.add('hidden');
+}
+
 function toggleDropdown(trigger) {
     const wrapper = trigger.closest('.custom-select-wrapper');
     const wasActive = wrapper.classList.contains('active');
@@ -646,6 +812,8 @@ btnRefreshDb.addEventListener('click', fetchAllRecords);
 btnShowSetup.addEventListener('click', showSetupModal);
 btnCloseSetup.addEventListener('click', closeSetupModal);
 btnSaveSetup.addEventListener('click', saveSetup);
+
+btnLiveSchedule.addEventListener('click', handleLiveSchedule);
 
 // Init
 createRow();
