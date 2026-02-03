@@ -925,7 +925,25 @@ button {
     cursor: pointer;
     margin: 0 2px;
     transition: all 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid transparent;
+}
+
+.spare-badge.badge-e {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.spare-badge.badge-i {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.spare-badge.badge-t {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.5);
 }
 
 .spare-badge:hover {
