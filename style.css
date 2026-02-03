@@ -1387,8 +1387,10 @@ button {
     color: #000;
     text-shadow: none;
     animation: board-item-in 0.3s ease-out;
-    max-width: 70%;
-    min-width: 100px;
+    max-width: 90%;
+    /* Increased from 70% */
+    min-width: 150px;
+    /* Increased from 100px */
     width: fit-content;
     position: relative;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
