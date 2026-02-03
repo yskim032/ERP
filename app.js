@@ -729,9 +729,9 @@ function applyScheduleFilter(showOnlyMatches) {
 
     // Update button active state
     btnScheduleCaseOnly.style.opacity = showOnlyMatches ? "1" : "0.5";
-    btnScheduleCaseOnly.style.boxShadow = showOnlyMatches ? "0 0 10px var(--msc-yellow)" : "none";
+    btnScheduleCaseOnly.style.boxShadow = showOnlyMatches ? "0 0 15px var(--msc-yellow)" : "none";
     btnScheduleShowAll.style.opacity = showOnlyMatches ? "0.5" : "1";
-    btnScheduleShowAll.style.boxShadow = showOnlyMatches ? "none" : "0 0 10px var(--primary)";
+    btnScheduleShowAll.style.boxShadow = showOnlyMatches ? "none" : "0 0 15px var(--msc-yellow)";
 }
 
 async function matchVesselRecords(vesselName) {
