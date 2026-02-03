@@ -821,10 +821,15 @@ function closeDetailModal() {
  * Date Helpers
  */
 function isPastDate(dateStr) {
-    if (!dateStr) return false;
+    if (!dateStr || typeof dateStr !== 'string') return false;
+    // Handle YYYY-MM-DD format explicitly as local time to avoid UTC shifts
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return false;
+
+    const targetDate = new Date(parts[0], parts[1] - 1, parts[2]); // local time
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const targetDate = new Date(dateStr);
+    today.setHours(0, 0, 0, 0); // start of today (local time)
+
     return targetDate < today;
 }
 

@@ -999,15 +999,18 @@ button {
 
 .modal-footer {
     margin-top: 2rem;
+    display: flex;
+    justify-content: flex-end;
+}
 
-    /* Past Date Highlighting */
-    .past-date-box {
-        display: inline-block;
-        background: rgba(255, 105, 180, 0.1);
-        /* Translucent pink */
-        border: 1px solid #ff69b4;
-        /* Pink border */
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin: -2px 0;
-    }
+/* Past Date Highlighting */
+.past-date-box {
+    display: inline-block;
+    background: rgba(255, 105, 180, 0.1);
+    /* Translucent pink */
+    border: 1px solid #ff69b4;
+    /* Pink border */
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin: -2px 0;
+}
