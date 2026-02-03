@@ -262,7 +262,7 @@ function handleExcel(e) {
     const reader = new FileReader();
     reader.onload = (evt) => {
         const data = evt.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(sheet);
@@ -270,9 +270,23 @@ function handleExcel(e) {
         if (json.length > 0) {
             entryTbody.innerHTML = "";
             json.forEach(row => {
-                const find = (keywords) => {
+                const find = (keywords, isDate = false) => {
                     const key = Object.keys(row).find(k => keywords.some(kw => k.toLowerCase().includes(kw.toLowerCase())));
-                    return key ? row[key] : "";
+                    if (!key) return "";
+                    let val = row[key];
+
+                    if (isDate && val) {
+                        try {
+                            const d = new Date(val);
+                            if (!isNaN(d.getTime())) {
+                                const year = d.getFullYear();
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                return `${year}-${month}-${day}`;
+                            }
+                        } catch (err) { console.warn("Date parsing error:", err); }
+                    }
+                    return val;
                 };
 
                 createRow({
@@ -282,9 +296,9 @@ function handleExcel(e) {
                     bl: find(['bl', '비엘']),
                     container: find(['container', '컨테이너']),
                     d_vessel: find(['discharge vessel', '양하선', 'd-vessel']),
-                    d_date: find(['discharge date', '양하일', 'd-date']),
+                    d_date: find(['discharge date', '양하일', 'd-date'], true),
                     l_vessel: find(['load vessel', '선적선', 'l-vessel']),
-                    l_date: find(['load date', '선적일', 'l-date']),
+                    l_date: find(['load date', '선적일', 'l-date'], true),
                     item: find(['item', '품목', '부속품']),
                     remark: find(['remark', '비고', '참조', 'note'])
                 });
