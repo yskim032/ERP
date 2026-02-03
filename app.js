@@ -377,6 +377,12 @@ function renderSearchResults(records) {
 function renderViewCard(data, card) {
     const typeMap = { 'E': 'Local Export', 'I': 'Local Import', 'T': 'T/S' };
     const fullType = typeMap[data.type] || data.type;
+    const isDPast = isPastDate(data.d_date);
+    const isLPast = isPastDate(data.l_date);
+
+    const dVesselHtml = isDPast ? `<span class="past-date-box">${data.d_vessel} (${data.d_date || '-'})</span>` : `${data.d_vessel} (${data.d_date || '-'})`;
+    const lVesselHtml = isLPast ? `<span class="past-date-box">${data.l_vessel} (${data.l_date || '-'})</span>` : `${data.l_vessel} (${data.l_date || '-'})`;
+
     card.innerHTML = `
         <div class="card-top">
             <span class="type-tag tag-${data.type?.toLowerCase()}">${fullType}</span>
@@ -385,8 +391,8 @@ function renderViewCard(data, card) {
         <div class="card-grid">
             <span class="item-label">POL/POD:</span><span class="item-value" style="color:var(--msc-yellow)">${data.pol || '-'} / ${data.pod || '-'}</span>
             <span class="item-label">Container:</span><span class="item-value">${data.container_no}</span>
-            <span class="item-label">D-Vessel:</span><span class="item-value">${data.d_vessel} (${data.d_date || '-'})</span>
-            <span class="item-label">L-Vessel:</span><span class="item-value">${data.l_vessel} (${data.l_date || '-'})</span>
+            <span class="item-label">D-Vessel:</span><span class="item-value">${dVesselHtml}</span>
+            <span class="item-label">L-Vessel:</span><span class="item-value">${lVesselHtml}</span>
             <span class="item-label">Item:</span><span class="item-value" style="color:var(--msc-yellow)">${data.item_name}</span>
             <span class="item-label">Remark:</span><span class="item-value">${data.remark || '-'}</span>
             <span class="item-label">PDF:</span><span class="item-value">${data.pdf_url ? `<a href="${data.pdf_url}" target="_blank" class="btn-pdf-link">📄 VIEW PDF</a>` : '-'}</span>
@@ -496,6 +502,14 @@ async function fetchAllRecords() {
 
             const dateStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : '-';
 
+            const isDPast = isPastDate(data.d_date);
+            const isLPast = isPastDate(data.l_date);
+
+            const dVesselContent = isDPast ? `<span class="past-date-box">${data.d_vessel || '-'}</span>` : (data.d_vessel || '-');
+            const dDateContent = isDPast ? `<span class="past-date-box">${data.d_date || '-'}</span>` : (data.d_date || '-');
+            const lVesselContent = isLPast ? `<span class="past-date-box">${data.l_vessel || '-'}</span>` : (data.l_vessel || '-');
+            const lDateContent = isLPast ? `<span class="past-date-box">${data.l_date || '-'}</span>` : (data.l_date || '-');
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><span class="type-badge badge-${data.type?.toLowerCase()}">${data.type || 'E'}</span></td>
@@ -503,10 +517,10 @@ async function fetchAllRecords() {
                 <td>${data.pod || '-'}</td>
                 <td>${data.bl_no || '-'}</td>
                 <td style="color:var(--msc-yellow); font-weight:700;">${data.container_no || '-'}</td>
-                <td>${data.d_vessel || '-'}</td>
-                <td>${data.d_date || '-'}</td>
-                <td>${data.l_vessel || '-'}</td>
-                <td>${data.l_date || '-'}</td>
+                <td>${dVesselContent}</td>
+                <td>${dDateContent}</td>
+                <td>${lVesselContent}</td>
+                <td>${lDateContent}</td>
                 <td style="color:var(--accent-yellow);">${data.item_name || '-'}</td>
                 <td>${data.remark || '-'}</td>
                 <td>${data.pdf_url ? `<a href="${data.pdf_url}" target="_blank" title="View PDF">📄</a>` : '-'}</td>
@@ -801,6 +815,17 @@ Remark: ${data.remark || '-'}
 
 function closeDetailModal() {
     detailModal.classList.add('hidden');
+}
+
+/**
+ * Date Helpers
+ */
+function isPastDate(dateStr) {
+    if (!dateStr) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDate = new Date(dateStr);
+    return targetDate < today;
 }
 
 function toggleDropdown(trigger) {
