@@ -990,6 +990,157 @@ async function deleteBoardMessage(id) {
     }
 }
 
+/**
+ * Show reply input form
+ */
+function showReplyForm(messageId, replyToId = null) {
+    const targetId = replyToId || messageId;
+    const formContainer = document.getElementById(`reply-form-${targetId}`);
+
+    // Close other open forms
+    document.querySelectorAll('[id^="reply-form-"]').forEach(form => {
+        if (form.id !== `reply-form-${targetId}`) {
+            form.style.display = 'none';
+            form.innerHTML = '';
+        }
+    });
+
+    // Toggle form
+    if (formContainer.style.display === 'none' || !formContainer.innerHTML) {
+        formContainer.style.display = 'block';
+        formContainer.innerHTML = `
+            <div class="reply-input-form">
+                <input type="text" id="reply-input-${targetId}" placeholder="답글을 입력하세요..." />
+                <button onclick="saveReply('${messageId}', '${replyToId || ''}', 'reply-input-${targetId}')">전송</button>
+                <button class="cancel" onclick="hideReplyForm('${targetId}')">취소</button>
+            </div>
+        `;
+        document.getElementById(`reply-input-${targetId}`).focus();
+    } else {
+        hideReplyForm(targetId);
+    }
+}
+
+function hideReplyForm(targetId) {
+    const formContainer = document.getElementById(`reply-form-${targetId}`);
+    if (formContainer) {
+        formContainer.style.display = 'none';
+        formContainer.innerHTML = '';
+    }
+}
+
+/**
+ * Save reply to a message
+ */
+async function saveReply(messageId, replyToId, inputId) {
+    const input = document.getElementById(inputId);
+    const text = input?.value.trim();
+
+    if (!text) {
+        showToast("⚠️ 답글 내용을 입력하세요.");
+        return;
+    }
+
+    const nickname = boardNickname.value.trim() || "Anonymous";
+
+    const newReply = {
+        nickname: nickname,
+        text: text,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        replies: []
+    };
+
+    try {
+        // Get the message document
+        const messageDoc = await db.collection("board_messages").doc(messageId).get();
+
+        if (!messageDoc.exists) {
+            showToast("❌ 메시지를 찾을 수 없습니다.");
+            return;
+        }
+
+        const messageData = messageDoc.data();
+        let replies = messageData.replies || [];
+
+        if (replyToId) {
+            // Add reply to a nested reply
+            replies = addNestedReply(replies, replyToId, newReply);
+        } else {
+            // Add reply to main message
+            newReply.id = Date.now().toString();
+            replies.push(newReply);
+        }
+
+        // Update the message with new replies
+        await db.collection("board_messages").doc(messageId).update({ replies });
+
+        showToast("✅ 답글이 등록되었습니다!");
+        hideReplyForm(replyToId || messageId);
+    } catch (error) {
+        console.error("Reply save error:", error);
+        showToast("❌ 답글 저장 실패.");
+    }
+}
+
+/**
+ * Recursively add reply to nested structure
+ */
+function addNestedReply(replies, targetId, newReply) {
+    return replies.map(reply => {
+        if (reply.id === targetId) {
+            newReply.id = Date.now().toString();
+            return {
+                ...reply,
+                replies: [...(reply.replies || []), newReply]
+            };
+        } else if (reply.replies && reply.replies.length > 0) {
+            return {
+                ...reply,
+                replies: addNestedReply(reply.replies, targetId, newReply)
+            };
+        }
+        return reply;
+    });
+}
+
+/**
+ * Delete a reply
+ */
+async function deleteReply(messageId, replyId) {
+    if (!confirm("이 답글을 삭제하시겠습니까?")) return;
+
+    try {
+        const messageDoc = await db.collection("board_messages").doc(messageId).get();
+
+        if (!messageDoc.exists) {
+            showToast("❌ 메시지를 찾을 수 없습니다.");
+            return;
+        }
+
+        const messageData = messageDoc.data();
+        let replies = messageData.replies || [];
+
+        // Remove reply recursively
+        replies = removeReplyById(replies, replyId);
+
+        await db.collection("board_messages").doc(messageId).update({ replies });
+        showToast("🗑️ 답글이 삭제되었습니다.");
+    } catch (error) {
+        console.error("Reply delete error:", error);
+        showToast("❌ 답글 삭제 실패.");
+    }
+}
+
+/**
+ * Recursively remove reply by ID
+ */
+function removeReplyById(replies, targetId) {
+    return replies.filter(reply => reply.id !== targetId).map(reply => ({
+        ...reply,
+        replies: reply.replies ? removeReplyById(reply.replies, targetId) : []
+    }));
+}
+
 function renderBoard() {
     if (!boardList) return;
 
@@ -1024,8 +1175,11 @@ function renderBoard() {
             ${entry.animateRTL ? `animation-duration: ${entry.scrollSpeed || 15}s;` : ''}
         `.replace(/\n/g, '').trim();
 
+        // Render replies recursively
+        const repliesHtml = entry.replies ? renderReplies(entry.replies, entry.id, 0) : '';
+
         return `
-            <div class="board-item ${entry.isPinned ? 'pinned' : ''} ${isRecent ? 'new-message' : ''}">
+            <div class="board-item ${entry.isPinned ? 'pinned' : ''} ${isRecent ? 'new-message' : ''}" data-message-id="${entry.id}">
                 <span class="nickname">${entry.nickname}</span>
                 <span class="time">${timeStr}</span>
                 <div class="message-container">
@@ -1033,7 +1187,43 @@ function renderBoard() {
                         ${entry.text}
                     </span>
                 </div>
-                <button class="btn-board-delete" onclick="deleteBoardMessage('${entry.id}')" title="Delete message">×</button>
+                <div style="display: flex; gap: 4px;">
+                    ${!entry.isPinned ? `<button class="btn-board-reply" onclick="showReplyForm('${entry.id}')" title="Reply">R</button>` : ''}
+                    <button class="btn-board-delete" onclick="deleteBoardMessage('${entry.id}')" title="Delete message">×</button>
+                </div>
+                <div id="reply-form-${entry.id}" style="display: none; grid-column: 1 / -1;"></div>
+                ${repliesHtml ? `<div class="replies-container" style="grid-column: 1 / -1;">${repliesHtml}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// Recursive function to render replies
+function renderReplies(replies, parentId, depth) {
+    if (!replies || replies.length === 0) return '';
+
+    const now = Date.now();
+
+    return replies.map(reply => {
+        const timeStr = reply.timestamp
+            ? new Date(reply.timestamp.seconds * 1000).toLocaleString()
+            : '-';
+
+        const nestedRepliesHtml = reply.replies ? renderReplies(reply.replies, reply.id, depth + 1) : '';
+
+        return `
+            <div class="reply-item" data-reply-id="${reply.id}">
+                <div class="reply-header">
+                    <span class="reply-nickname">${reply.nickname}</span>
+                    <span class="reply-time">${timeStr}</span>
+                </div>
+                <div class="reply-text">${reply.text}</div>
+                <div class="reply-actions">
+                    <button class="btn-board-reply" onclick="showReplyForm('${parentId}', '${reply.id}')" title="Reply" style="font-size: 0.7rem; padding: 2px 6px;">R</button>
+                    <button class="btn-board-delete" onclick="deleteReply('${parentId}', '${reply.id}')" title="Delete" style="font-size: 0.9rem; padding: 2px 6px;">×</button>
+                </div>
+                <div id="reply-form-${reply.id}" style="display: none;"></div>
+                ${nestedRepliesHtml ? `<div class="replies-container">${nestedRepliesHtml}</div>` : ''}
             </div>
         `;
     }).join('');

@@ -1168,15 +1168,15 @@ button {
     padding: 8px 12px;
     border-bottom: 1px solid rgba(0, 255, 0, 0.1);
     display: grid;
-    grid-template-columns: 120px 150px 1fr 40px;
+    grid-template-columns: 120px 150px 1fr auto;
+    grid-template-rows: auto auto auto;
     align-items: center;
     gap: 15px;
     color: #00ff00;
     text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
     font-size: 0.9rem;
     animation: board-item-in 0.3s ease-out;
-    overflow: hidden;
-    /* Contain scrolling text */
+    overflow: visible;
 }
 
 .board-item .message-container {
@@ -1220,6 +1220,138 @@ button {
 .btn-board-delete:hover {
     opacity: 1;
     transform: scale(1.2);
+}
+
+.btn-board-reply {
+    background: transparent;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0.7;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.btn-board-reply:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    color: #60a5fa;
+}
+
+/* Reply Input Form */
+.reply-input-form {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 4px;
+    display: flex;
+    gap: 8px;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.reply-input-form input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.reply-input-form button {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reply-input-form button:hover {
+    background: #2563eb;
+}
+
+.reply-input-form button.cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.reply-input-form button.cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Replies Container */
+.replies-container {
+    margin-top: 8px;
+    padding-left: 20px;
+    border-left: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+.reply-item {
+    font-family: 'Orbitron', sans-serif;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    text-shadow: none;
+    animation: board-item-in 0.3s ease-out;
+}
+
+.reply-item .reply-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.reply-item .reply-nickname {
+    color: #60a5fa;
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+.reply-item .reply-time {
+    color: #64748b;
+    font-size: 0.65rem;
+    font-family: 'Roboto Mono', monospace;
+}
+
+.reply-item .reply-text {
+    color: #e2e8f0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.reply-item .reply-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    justify-content: flex-end;
 }
 
 
