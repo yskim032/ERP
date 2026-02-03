@@ -362,7 +362,8 @@ h1 {
 }
 
 h2 {
-    font-size: 1rem;
+    font-size: 1.5rem;
+    /* Increased from 1rem */
     color: var(--msc-yellow);
     display: flex;
     align-items: center;
@@ -370,6 +371,7 @@ h2 {
     letter-spacing: 1px;
     margin: 0;
 }
+
 
 .header-main {
     display: flex;
@@ -1084,4 +1086,198 @@ button {
     padding: 2px 6px;
     border-radius: 4px;
     margin: -2px 0;
+}
+
+/* --- Message Board Section --- */
+#board-section {
+    margin-bottom: 0.5rem;
+}
+
+.board-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.board-input-small {
+    width: 150px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+.board-input-large {
+    flex: 2;
+    /* Increased priority to take more space */
+    min-width: 400px;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+.board-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0 15px;
+    height: 40px;
+    border: 1px solid var(--glass-border);
+}
+
+.control-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+#board-color {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+
+.board-display-container {
+    margin-top: 1rem;
+    background: #000;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    height: 300px;
+    /* Show roughly 10 items */
+    overflow-y: auto;
+    position: relative;
+    /* Dot matrix background for the whole area */
+    background-image: radial-gradient(circle, #222 1px, transparent 1px);
+    background-size: 4px 4px;
+}
+
+.board-list {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.board-item {
+    font-family: 'Orbitron', sans-serif;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    display: grid;
+    grid-template-columns: 120px 150px 1fr 40px;
+    align-items: center;
+    gap: 15px;
+    color: #00ff00;
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    font-size: 0.9rem;
+    animation: board-item-in 0.3s ease-out;
+    overflow: hidden;
+    /* Contain scrolling text */
+}
+
+.board-item .message-container {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+.board-item .message.scrolling {
+    display: inline-block;
+    padding-left: 100%;
+    animation: board-scroll-rtl linear infinite;
+    will-change: transform;
+}
+
+@keyframes board-scroll-rtl {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+.btn-board-delete {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.btn-board-delete:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+
+.board-item.pinned {
+    background: rgba(255, 204, 0, 0.05);
+    border-left: 4px solid var(--msc-yellow);
+    box-shadow: inset 0 0 15px rgba(255, 204, 0, 0.1);
+}
+
+.board-item.pinned .nickname:before {
+    content: '📌 ';
+}
+
+
+@keyframes board-item-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.board-item .nickname {
+    color: var(--msc-yellow);
+    text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.board-item .time {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-family: 'Roboto Mono', monospace;
+    text-shadow: none;
+}
+
+.board-item .message {
+    color: #fff;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+/* Custom Scrollbar for LED Board */
+.board-display-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.board-display-container::-webkit-scrollbar-track {
+    background: #000;
+}
+
+.board-display-container::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 4px;
+    box-shadow: 0 0 10px #00ff00;
 }

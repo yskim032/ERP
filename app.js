@@ -37,12 +37,25 @@ const btnScheduleCaseOnly = document.getElementById('btn-schedule-case-only');
 const btnScheduleShowAll = document.getElementById('btn-schedule-show-all');
 const ledText = document.getElementById('led-text');
 
+// --- Board Elements ---
+const boardNickname = document.getElementById('board-nickname');
+const boardText = document.getElementById('board-text');
+const boardColor = document.getElementById('board-color');
+const boardFontSize = document.getElementById('board-font-size');
+const boardFontWeight = document.getElementById('board-font-weight');
+const boardAnimate = document.getElementById('board-animate');
+const boardSpeed = document.getElementById('board-speed');
+const boardPin = document.getElementById('board-pin');
+const btnBoardSave = document.getElementById('btn-board-save');
+const boardList = document.getElementById('board-list');
+
 // --- State ---
 let rowCount = 0;
 let allScheduleRows = []; // Cache for Live Schedule filtering
 let ledRotationIndex = 0;
 let ledRecords = [];
 let ledInterval = null;
+let boardEntries = []; // Message board storage
 
 // --- Functions ---
 
@@ -902,6 +915,122 @@ function isUpcomingDate(dateStr) {
     return targetDate >= today;
 }
 
+/**
+ * Message Board Logic with Firebase
+ */
+function loadBoard() {
+    // Real-time listener for board messages
+    db.collection("board_messages")
+        .orderBy("timestamp", "desc")
+        .limit(50)
+        .onSnapshot(snapshot => {
+            boardEntries = [];
+            snapshot.docs.forEach(doc => {
+                boardEntries.push({ ...doc.data(), id: doc.id });
+            });
+            renderBoard();
+        }, error => {
+            console.error("Board load error:", error);
+            showToast("❌ Failed to load board messages.");
+        });
+}
+
+async function saveBoardMessage() {
+    const nickname = boardNickname.value.trim();
+    const text = boardText.value.trim();
+    const color = boardColor.value;
+    const fontSize = boardFontSize.value;
+    const fontWeight = boardFontWeight.value;
+    const animateRTL = boardAnimate.checked;
+    const scrollSpeed = boardSpeed.value;
+    const isPinned = boardPin.checked;
+
+    if (!nickname || !text) {
+        showToast("⚠️ Nickname and message are required.");
+        return;
+    }
+
+    const newEntry = {
+        nickname: nickname,
+        text: text,
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        animateRTL: animateRTL,
+        scrollSpeed: scrollSpeed,
+        isPinned: isPinned,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+        await db.collection("board_messages").add(newEntry);
+
+        boardText.value = ""; // Clear message field
+        boardPin.checked = false; // Reset pin for next use
+        boardAnimate.checked = false; // Reset animation toggle
+        showToast("✅ Message posted!");
+    } catch (error) {
+        console.error("Save error:", error);
+        showToast("❌ Failed to save message.");
+    }
+}
+
+/**
+ * Delete a message from the board
+ */
+async function deleteBoardMessage(id) {
+    if (!confirm("Delete this message?")) return;
+
+    try {
+        await db.collection("board_messages").doc(id).delete();
+        showToast("🗑️ Message deleted.");
+    } catch (error) {
+        console.error("Delete error:", error);
+        showToast("❌ Failed to delete message.");
+    }
+}
+
+function renderBoard() {
+    if (!boardList) return;
+
+    // Sort logic: Pinned first, then by timestamp descending (newest first)
+    const sortedEntries = [...boardEntries].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        // Use timestamp for sorting if available
+        const aTime = a.timestamp?.seconds || 0;
+        const bTime = b.timestamp?.seconds || 0;
+        return bTime - aTime;
+    });
+
+    boardList.innerHTML = sortedEntries.map(entry => {
+        const timeStr = entry.timestamp
+            ? new Date(entry.timestamp.seconds * 1000).toLocaleString()
+            : entry.time || '-';
+
+        const textStyle = `
+            color: ${entry.color || '#fff'}; 
+            font-size: ${entry.fontSize || '0.9rem'}; 
+            font-weight: ${entry.fontWeight || '400'}; 
+            text-shadow: 0 0 8px ${entry.color || '#fff'}80;
+            ${entry.animateRTL ? `animation-duration: ${entry.scrollSpeed || 15}s;` : ''}
+        `.replace(/\n/g, '').trim();
+
+        return `
+            <div class="board-item ${entry.isPinned ? 'pinned' : ''}">
+                <span class="nickname">${entry.nickname}</span>
+                <span class="time">${timeStr}</span>
+                <div class="message-container">
+                    <span class="message ${entry.animateRTL ? 'scrolling' : ''}" style="${textStyle}">
+                        ${entry.text}
+                    </span>
+                </div>
+                <button class="btn-board-delete" onclick="deleteBoardMessage('${entry.id}')" title="Delete message">×</button>
+            </div>
+        `;
+    }).join('');
+}
+
 function toggleDropdown(trigger) {
     const wrapper = trigger.closest('.custom-select-wrapper');
     const wasActive = wrapper.classList.contains('active');
@@ -945,6 +1074,10 @@ btnLiveSchedule.addEventListener('click', handleLiveSchedule);
 btnScheduleCaseOnly.addEventListener('click', () => applyScheduleFilter(true));
 btnScheduleShowAll.addEventListener('click', () => applyScheduleFilter(false));
 
+btnBoardSave.addEventListener('click', saveBoardMessage);
+boardText.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBoardMessage(); });
+
 // Init
 createRow();
 fetchAllRecords();
+loadBoard();

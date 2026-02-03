@@ -40,6 +40,49 @@
                 </div>
             </div>
 
+            <!-- Message Board Section -->
+            <section id="board-section" class="glass">
+                <div class="section-header">
+                    <h2>Live Message Board</h2>
+                    <div class="board-inputs">
+                        <input type="text" id="board-nickname" placeholder="Nickname" class="board-input-small">
+                        <input type="text" id="board-text" placeholder="Message..." class="board-input-large">
+                        <div class="board-controls">
+                            <label class="control-label">Color: <input type="color" id="board-color"
+                                    value="#ffffff"></label>
+                            <label class="control-label">Size:
+                                <select id="board-font-size">
+                                    <option value="0.9rem">Normal</option>
+                                    <option value="1.2rem">Medium</option>
+                                    <option value="1.5rem" selected>Large</option>
+                                    <option value="2rem">X-Large</option>
+                                </select>
+                            </label>
+                            <label class="control-label">Weight:
+                                <select id="board-font-weight">
+                                    <option value="400">Normal</option>
+                                    <option value="700" selected>Bold</option>
+                                    <option value="900">Black</option>
+                                </select>
+                            </label>
+                            <label class="control-label">
+                                <input type="checkbox" id="board-animate"> RTL Scroll
+                            </label>
+                            <label class="control-label">Speed:
+                                <input type="range" id="board-speed" min="5" max="30" value="15" step="1">
+                            </label>
+                            <label class="control-label"><input type="checkbox" id="board-pin"> Pin </label>
+                        </div>
+                        <button id="btn-board-save" class="btn-small">SAVE MESSAGE</button>
+                    </div>
+                </div>
+                <div class="board-display-container">
+                    <div id="board-list" class="board-list">
+                        <!-- Board items will be injected here -->
+                    </div>
+                </div>
+            </section>
+
             <!-- Top: Data Entry -->
             <aside class="entry-section glass">
                 <div class="section-header">
