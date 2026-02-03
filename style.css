@@ -1281,3 +1281,21 @@ button {
     border-radius: 4px;
     box-shadow: 0 0 10px #00ff00;
 }
+
+/* New Message Glow Effect (within 1 hour) */
+.board-item.new-message {
+    border: 2px solid #00ff00;
+    animation: green-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes green-glow-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00;
+    }
+
+    50% {
+        box-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+    }
+}

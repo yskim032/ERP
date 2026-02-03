@@ -1003,10 +1003,18 @@ function renderBoard() {
         return bTime - aTime;
     });
 
+    // Get current time for checking if message is recent (within 1 hour)
+    const now = Date.now();
+    const oneHourInMs = 60 * 60 * 1000; // 1 hour in milliseconds
+
     boardList.innerHTML = sortedEntries.map(entry => {
         const timeStr = entry.timestamp
             ? new Date(entry.timestamp.seconds * 1000).toLocaleString()
             : entry.time || '-';
+
+        // Check if message is less than 1 hour old
+        const messageTime = entry.timestamp?.seconds ? entry.timestamp.seconds * 1000 : 0;
+        const isRecent = messageTime && (now - messageTime) < oneHourInMs;
 
         const textStyle = `
             color: ${entry.color || '#fff'}; 
@@ -1017,7 +1025,7 @@ function renderBoard() {
         `.replace(/\n/g, '').trim();
 
         return `
-            <div class="board-item ${entry.isPinned ? 'pinned' : ''}">
+            <div class="board-item ${entry.isPinned ? 'pinned' : ''} ${isRecent ? 'new-message' : ''}">
                 <span class="nickname">${entry.nickname}</span>
                 <span class="time">${timeStr}</span>
                 <div class="message-container">
