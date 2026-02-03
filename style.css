@@ -1388,9 +1388,8 @@ button {
     text-shadow: none;
     animation: board-item-in 0.3s ease-out;
     max-width: 90%;
-    /* Increased from 70% */
-    min-width: 150px;
-    /* Increased from 100px */
+    min-width: 250px;
+    /* Increased to 250px explicitly */
     width: fit-content;
     position: relative;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -1411,6 +1410,10 @@ button {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    /* Allow wrapping */
+    gap: 8px;
+    /* Add gap between items */
     margin-bottom: 5px;
     padding-bottom: 3px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);

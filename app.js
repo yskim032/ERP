@@ -1000,29 +1000,33 @@ function showReplyForm(messageId, replyToId = null) {
         existingForm.remove();
     }
 
-    // Get the target message/reply for context
-    const targetEntry = boardEntries.find(e => e.id === messageId);
-    const targetNickname = targetEntry?.nickname || 'Unknown';
-
     const targetId = replyToId || messageId;
 
     // Create popup form
     const formDiv = document.createElement('div');
     formDiv.className = 'reply-input-form';
     formDiv.innerHTML = `
-        <div class="reply-form-header">💬 답글 작성 중 → ${targetNickname}</div>
+        <div class="reply-form-header">💬 답글 작성</div>
+        <input type="text" id="reply-nickname-${targetId}" placeholder="닉네임" value="${boardNickname.value || ''}" />
         <textarea id="reply-textarea-${targetId}" placeholder="답글을 입력하세요..." rows="1"></textarea>
         <div class="reply-form-actions">
-            <button onclick="saveReply('${messageId}', '${replyToId || ''}', 'reply-textarea-${targetId}')">전송</button>
+            <button onclick="saveReply('${messageId}', '${replyToId || ''}', 'reply-textarea-${targetId}', 'reply-nickname-${targetId}')">전송</button>
             <button class="cancel" onclick="hideReplyForm()">취소</button>
         </div>
     `;
 
     document.body.appendChild(formDiv);
 
-    // Auto-expand textarea
+    // Auto-focus logic
+    // If nickname is empty, focus nickname, else focus textarea
+    const nicknameInput = document.getElementById(`reply-nickname-${targetId}`);
     const textarea = document.getElementById(`reply-textarea-${targetId}`);
-    textarea.focus();
+
+    if (!nicknameInput.value) {
+        nicknameInput.focus();
+    } else {
+        textarea.focus();
+    }
 
     textarea.addEventListener('input', function () {
         this.style.height = 'auto';
@@ -1040,18 +1044,19 @@ function hideReplyForm() {
 /**
  * Save reply to a message
  */
-async function saveReply(messageId, replyToId, textareaId) {
+async function saveReply(messageId, replyToId, textareaId, nicknameId) {
     const textarea = document.getElementById(textareaId);
+    const nicknameInput = document.getElementById(nicknameId);
+
     const text = textarea?.value.trim();
+    // Use the nickname from the popup form
+    const nickname = nicknameInput?.value.trim() || "Anonymous";
 
     if (!text) {
         showToast("⚠️ 답글 내용을 입력하세요.");
         return;
     }
 
-    const nickname = boardNickname.value.trim() || "Anonymous";
-
-    // Create reply with client-side timestamp first
     const newReply = {
         id: Date.now().toString(),
         nickname: nickname,
