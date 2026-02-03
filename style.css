@@ -1368,7 +1368,14 @@ button {
 }
 
 /* KakaoTalk Style Reply Bubbles */
-.reply-item {
+.reply-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.reply-bubble {
     font-family: 'Outfit', sans-serif;
     padding: 8px 12px;
     margin-bottom: 4px;
@@ -1381,12 +1388,11 @@ button {
     max-width: 70%;
     min-width: 100px;
     width: fit-content;
-    align-self: flex-end;
     position: relative;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.reply-item::after {
+.reply-bubble::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -1397,7 +1403,7 @@ button {
     border-bottom: 6px solid transparent;
 }
 
-.reply-item .reply-header {
+.reply-bubble .reply-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1406,19 +1412,19 @@ button {
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.reply-item .reply-nickname {
+.reply-bubble .reply-nickname {
     color: #1a1a1a;
     font-weight: 700;
     font-size: 0.75rem;
 }
 
-.reply-item .reply-time {
+.reply-bubble .reply-time {
     color: #666;
     font-size: 0.65rem;
     font-family: 'Roboto Mono', monospace;
 }
 
-.reply-item .reply-text {
+.reply-bubble .reply-text {
     color: #000;
     font-size: 0.85rem;
     line-height: 1.4;
@@ -1426,7 +1432,7 @@ button {
     white-space: pre-wrap;
 }
 
-.reply-item .reply-actions {
+.reply-bubble .reply-actions {
     display: flex;
     gap: 4px;
     margin-top: 6px;
@@ -1435,19 +1441,19 @@ button {
     justify-content: flex-end;
 }
 
-.reply-item .btn-board-reply,
-.reply-item .btn-board-delete {
+.reply-bubble .btn-board-reply,
+.reply-bubble .btn-board-delete {
     font-size: 0.7rem;
     padding: 2px 6px;
     background: rgba(0, 0, 0, 0.05);
     border-radius: 3px;
 }
 
-.reply-item .btn-board-reply {
+.reply-bubble .btn-board-reply {
     color: #1a73e8;
 }
 
-.reply-item .btn-board-delete {
+.reply-bubble .btn-board-delete {
     color: #d32f2f;
 }
 

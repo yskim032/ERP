@@ -1228,15 +1228,17 @@ function renderReplies(replies, parentId, depth) {
         const nestedRepliesHtml = reply.replies ? renderReplies(reply.replies, reply.id, depth + 1) : '';
 
         return `
-            <div class="reply-item" data-reply-id="${reply.id}">
-                <div class="reply-header">
-                    <span class="reply-nickname">${reply.nickname}</span>
-                    <span class="reply-time">${timeStr}</span>
-                </div>
-                <div class="reply-text">${reply.text}</div>
-                <div class="reply-actions">
-                    <button class="btn-board-reply" onclick="showReplyForm('${parentId}', '${reply.id}')" title="Reply" style="font-size: 0.7rem; padding: 2px 6px;">R</button>
-                    <button class="btn-board-delete" onclick="deleteReply('${parentId}', '${reply.id}')" title="Delete" style="font-size: 0.9rem; padding: 2px 6px;">×</button>
+            <div class="reply-wrapper" data-reply-id="${reply.id}">
+                <div class="reply-bubble">
+                    <div class="reply-header">
+                        <span class="reply-nickname">${reply.nickname}</span>
+                        <span class="reply-time">${timeStr}</span>
+                    </div>
+                    <div class="reply-text">${reply.text}</div>
+                    <div class="reply-actions">
+                        <button class="btn-board-reply" onclick="showReplyForm('${parentId}', '${reply.id}')" title="Reply" style="font-size: 0.7rem; padding: 2px 6px;">R</button>
+                        <button class="btn-board-delete" onclick="deleteReply('${parentId}', '${reply.id}')" title="Delete" style="font-size: 0.9rem; padding: 2px 6px;">×</button>
+                    </div>
                 </div>
                 <div id="reply-form-${reply.id}" style="display: none;"></div>
                 ${nestedRepliesHtml ? `<div class="replies-container">${nestedRepliesHtml}</div>` : ''}
