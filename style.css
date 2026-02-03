@@ -1246,20 +1246,28 @@ button {
 
 /* Reply Input Form */
 .reply-input-form {
-    margin-top: 8px;
-    padding: 8px;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 4px;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    min-width: 400px;
+    max-width: 600px;
+    padding: 15px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    border-radius: 8px;
     display: flex;
-    gap: 8px;
-    animation: slideDown 0.3s ease-out;
+    flex-direction: column;
+    gap: 10px;
+    animation: slideUp 0.3s ease-out;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+    z-index: 1000;
 }
 
-@keyframes slideDown {
+@keyframes slideUp {
     from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(20px);
     }
 
     to {
@@ -1268,29 +1276,57 @@ button {
     }
 }
 
-.reply-input-form input {
-    flex: 1;
+.reply-form-header {
+    color: #60a5fa;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.reply-input-form textarea {
+    width: 100%;
+    min-height: 60px;
+    max-height: 300px;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
-    padding: 6px 10px;
+    padding: 10px;
     border-radius: 4px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    font-family: 'Outfit', sans-serif;
+    resize: none;
+    overflow-y: auto;
+    transition: border-color 0.2s;
+}
+
+.reply-input-form textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.reply-form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
 }
 
 .reply-input-form button {
-    padding: 6px 12px;
-    font-size: 0.75rem;
+    padding: 8px 16px;
+    font-size: 0.85rem;
     background: #3b82f6;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    font-weight: 600;
 }
 
 .reply-input-form button:hover {
     background: #2563eb;
+    transform: translateY(-1px);
 }
 
 .reply-input-form button.cancel {
@@ -1300,6 +1336,7 @@ button {
 
 .reply-input-form button.cancel:hover {
     background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Replies Container */

@@ -994,47 +994,55 @@ async function deleteBoardMessage(id) {
  * Show reply input form
  */
 function showReplyForm(messageId, replyToId = null) {
-    const targetId = replyToId || messageId;
-    const formContainer = document.getElementById(`reply-form-${targetId}`);
-
-    // Close other open forms
-    document.querySelectorAll('[id^="reply-form-"]').forEach(form => {
-        if (form.id !== `reply-form-${targetId}`) {
-            form.style.display = 'none';
-            form.innerHTML = '';
-        }
-    });
-
-    // Toggle form
-    if (formContainer.style.display === 'none' || !formContainer.innerHTML) {
-        formContainer.style.display = 'block';
-        formContainer.innerHTML = `
-            <div class="reply-input-form">
-                <input type="text" id="reply-input-${targetId}" placeholder="답글을 입력하세요..." />
-                <button onclick="saveReply('${messageId}', '${replyToId || ''}', 'reply-input-${targetId}')">전송</button>
-                <button class="cancel" onclick="hideReplyForm('${targetId}')">취소</button>
-            </div>
-        `;
-        document.getElementById(`reply-input-${targetId}`).focus();
-    } else {
-        hideReplyForm(targetId);
+    // Remove any existing reply form
+    const existingForm = document.querySelector('.reply-input-form');
+    if (existingForm) {
+        existingForm.remove();
     }
+
+    // Get the target message/reply for context
+    const targetEntry = boardEntries.find(e => e.id === messageId);
+    const targetNickname = targetEntry?.nickname || 'Unknown';
+
+    const targetId = replyToId || messageId;
+
+    // Create popup form
+    const formDiv = document.createElement('div');
+    formDiv.className = 'reply-input-form';
+    formDiv.innerHTML = `
+        <div class="reply-form-header">💬 답글 작성 중 → ${targetNickname}</div>
+        <textarea id="reply-textarea-${targetId}" placeholder="답글을 입력하세요..." rows="1"></textarea>
+        <div class="reply-form-actions">
+            <button onclick="saveReply('${messageId}', '${replyToId || ''}', 'reply-textarea-${targetId}')">전송</button>
+            <button class="cancel" onclick="hideReplyForm()">취소</button>
+        </div>
+    `;
+
+    document.body.appendChild(formDiv);
+
+    // Auto-expand textarea
+    const textarea = document.getElementById(`reply-textarea-${targetId}`);
+    textarea.focus();
+
+    textarea.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    });
 }
 
-function hideReplyForm(targetId) {
-    const formContainer = document.getElementById(`reply-form-${targetId}`);
-    if (formContainer) {
-        formContainer.style.display = 'none';
-        formContainer.innerHTML = '';
+function hideReplyForm() {
+    const form = document.querySelector('.reply-input-form');
+    if (form) {
+        form.remove();
     }
 }
 
 /**
  * Save reply to a message
  */
-async function saveReply(messageId, replyToId, inputId) {
-    const input = document.getElementById(inputId);
-    const text = input?.value.trim();
+async function saveReply(messageId, replyToId, textareaId) {
+    const textarea = document.getElementById(textareaId);
+    const text = textarea?.value.trim();
 
     if (!text) {
         showToast("⚠️ 답글 내용을 입력하세요.");
@@ -1043,10 +1051,12 @@ async function saveReply(messageId, replyToId, inputId) {
 
     const nickname = boardNickname.value.trim() || "Anonymous";
 
+    // Create reply with client-side timestamp first
     const newReply = {
+        id: Date.now().toString(),
         nickname: nickname,
         text: text,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        timestamp: new Date(),
         replies: []
     };
 
@@ -1067,18 +1077,20 @@ async function saveReply(messageId, replyToId, inputId) {
             replies = addNestedReply(replies, replyToId, newReply);
         } else {
             // Add reply to main message
-            newReply.id = Date.now().toString();
             replies.push(newReply);
         }
 
         // Update the message with new replies
-        await db.collection("board_messages").doc(messageId).update({ replies });
+        await db.collection("board_messages").doc(messageId).update({
+            replies: replies,
+            lastReplyTime: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
         showToast("✅ 답글이 등록되었습니다!");
-        hideReplyForm(replyToId || messageId);
+        hideReplyForm();
     } catch (error) {
         console.error("Reply save error:", error);
-        showToast("❌ 답글 저장 실패.");
+        showToast("❌ 답글 저장 실패: " + error.message);
     }
 }
 
@@ -1086,9 +1098,13 @@ async function saveReply(messageId, replyToId, inputId) {
  * Recursively add reply to nested structure
  */
 function addNestedReply(replies, targetId, newReply) {
+    // Set ID if not already set
+    if (!newReply.id) {
+        newReply.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    }
+
     return replies.map(reply => {
         if (reply.id === targetId) {
-            newReply.id = Date.now().toString();
             return {
                 ...reply,
                 replies: [...(reply.replies || []), newReply]
