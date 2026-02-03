@@ -829,7 +829,6 @@ function closeDetailModal() {
 function updateLedTicker(records) {
     if (ledInterval) clearInterval(ledInterval);
 
-    // Filter records with valid dates and calculate proximity
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -861,27 +860,27 @@ function updateLedTicker(records) {
         return;
     }
 
-    ledRotationIndex = 0;
-    rotateLedMessage();
-    ledInterval = setInterval(rotateLedMessage, 10000); // Rotate every 10 seconds
-}
-
-function rotateLedMessage() {
-    if (ledRecords.length === 0) return;
-
-    const record = ledRecords[ledRotationIndex];
+    // Colors to cycle through in the ribbon
     const colors = ['led-green', 'led-yellow', 'led-orange'];
-    const colorClass = colors[ledRotationIndex % colors.length];
 
-    ledText.innerHTML = `🚨 URGENT: [${record.vessel}] [${record.date}] BL:[${record.bl}] CNTR:[${record.container}] - PLEASE PROCESS ASAP 🚨`;
-    ledText.className = `led-text ${colorClass}`;
+    // Create the message ribbon (one set of messages)
+    const ribbonHtml = ledRecords.map((record, idx) => {
+        const colorClass = colors[idx % colors.length];
+        return `
+            <div class="led-text-item ${colorClass}">
+                🚨 URGENT: [${record.vessel}] [${record.date}] BL:[${record.bl}] CNTR:[${record.container}] - PLEASE PROCESS ASAP 🚨
+            </div>
+        `;
+    }).join('');
+
+    // Double the content for a seamless CSS looping animation (0% -> -50%)
+    ledText.innerHTML = ribbonHtml + ribbonHtml;
+    ledText.className = "led-text"; // Remove specific color from parent
 
     // Restart animation
     ledText.style.animation = 'none';
     ledText.offsetHeight; // trigger reflow
     ledText.style.animation = null;
-
-    ledRotationIndex = (ledRotationIndex + 1) % ledRecords.length;
 }
 
 /**

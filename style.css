@@ -1042,13 +1042,21 @@ button {
 }
 
 @keyframes led-scroll {
-    from {
-        transform: translateX(100%);
+    0% {
+        transform: translateX(0);
     }
 
-    to {
-        transform: translateX(-100%);
+    100% {
+        transform: translateX(-50%);
     }
+}
+
+.led-text-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    padding-right: 15vw;
+    /* Fixed gap between messages */
 }
 
 .led-green {
