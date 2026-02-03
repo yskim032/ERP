@@ -33,9 +33,12 @@ const scheduleTbody = document.getElementById('schedule-tbody');
 const detailModal = document.getElementById('detail-modal');
 const detailContent = document.getElementById('detail-content');
 const btnCopyAll = document.getElementById('btn-copy-all');
+const btnScheduleCaseOnly = document.getElementById('btn-schedule-case-only');
+const btnScheduleShowAll = document.getElementById('btn-schedule-show-all');
 
 // --- State ---
 let rowCount = 0;
+let allScheduleRows = []; // Cache for Live Schedule filtering
 
 // --- Functions ---
 
@@ -679,8 +682,9 @@ function normalizeScheduleDate(dateStr) {
 
 async function renderScheduleTable(rows) {
     scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Processing...</td></tr>';
+    allScheduleRows = []; // Clear previous cache
 
-    const htmlRows = await Promise.all(rows.map(async (row) => {
+    allScheduleRows = await Promise.all(rows.map(async (row) => {
         const matches = await matchVesselRecords(row.searchVessel);
         const badges = matches.map(m => `
             <span class="spare-badge badge-${m.type.toLowerCase()}" 
@@ -690,7 +694,7 @@ async function renderScheduleTable(rows) {
             </span>
         `).join('');
 
-        return `
+        const html = `
             <tr>
                 <td style="color:var(--msc-yellow); font-weight:700;">${row.displayVessel}</td>
                 <td>${row.arrival}</td>
@@ -699,10 +703,35 @@ async function renderScheduleTable(rows) {
                 <td>${badges || '<span style="opacity:0.3">-</span>'}</td>
             </tr>
         `;
+
+        return {
+            html: html,
+            hasMatches: matches.length > 0
+        };
     }));
 
-    scheduleTbody.innerHTML = htmlRows.join('');
+    applyScheduleFilter(false); // Show all by default
     showToast(`✅ Loaded ${rows.length} schedule items.`);
+}
+
+function applyScheduleFilter(showOnlyMatches) {
+    if (allScheduleRows.length === 0) return;
+
+    const filtered = showOnlyMatches
+        ? allScheduleRows.filter(r => r.hasMatches)
+        : allScheduleRows;
+
+    if (filtered.length === 0 && showOnlyMatches) {
+        scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; opacity:0.5;">No matching spare cases found.</td></tr>';
+    } else {
+        scheduleTbody.innerHTML = filtered.map(r => r.html).join('');
+    }
+
+    // Update button active state
+    btnScheduleCaseOnly.style.opacity = showOnlyMatches ? "1" : "0.5";
+    btnScheduleCaseOnly.style.boxShadow = showOnlyMatches ? "0 0 10px var(--msc-yellow)" : "none";
+    btnScheduleShowAll.style.opacity = showOnlyMatches ? "0.5" : "1";
+    btnScheduleShowAll.style.boxShadow = showOnlyMatches ? "none" : "0 0 10px var(--primary)";
 }
 
 async function matchVesselRecords(vesselName) {
@@ -814,6 +843,8 @@ btnCloseSetup.addEventListener('click', closeSetupModal);
 btnSaveSetup.addEventListener('click', saveSetup);
 
 btnLiveSchedule.addEventListener('click', handleLiveSchedule);
+btnScheduleCaseOnly.addEventListener('click', () => applyScheduleFilter(true));
+btnScheduleShowAll.addEventListener('click', () => applyScheduleFilter(false));
 
 // Init
 createRow();
