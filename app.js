@@ -381,11 +381,11 @@ function renderSearchResults(records) {
 function renderViewCard(data, card) {
     const typeMap = { 'E': 'Local Export', 'I': 'Local Import', 'T': 'T/S' };
     const fullType = typeMap[data.type] || data.type;
-    const isDPast = isPastDate(data.d_date);
-    const isLPast = isPastDate(data.l_date);
+    const isDUpcoming = isUpcomingDate(data.d_date);
+    const isLUpcoming = isUpcomingDate(data.l_date);
 
-    const dVesselHtml = isDPast ? `<span class="past-date-box">${data.d_vessel} (${data.d_date || '-'})</span>` : `${data.d_vessel} (${data.d_date || '-'})`;
-    const lVesselHtml = isLPast ? `<span class="past-date-box">${data.l_vessel} (${data.l_date || '-'})</span>` : `${data.l_vessel} (${data.l_date || '-'})`;
+    const dVesselHtml = isDUpcoming ? `<span class="past-date-box">${data.d_vessel} (${data.d_date || '-'})</span>` : `${data.d_vessel} (${data.d_date || '-'})`;
+    const lVesselHtml = isLUpcoming ? `<span class="past-date-box">${data.l_vessel} (${data.l_date || '-'})</span>` : `${data.l_vessel} (${data.l_date || '-'})`;
 
     card.innerHTML = `
         <div class="card-top">
@@ -506,13 +506,13 @@ async function fetchAllRecords() {
 
             const dateStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : '-';
 
-            const isDPast = isPastDate(data.d_date);
-            const isLPast = isPastDate(data.l_date);
+            const isDUpcoming = isUpcomingDate(data.d_date);
+            const isLUpcoming = isUpcomingDate(data.l_date);
 
-            const dVesselContent = isDPast ? `<span class="past-date-box">${data.d_vessel || '-'}</span>` : (data.d_vessel || '-');
-            const dDateContent = isDPast ? `<span class="past-date-box">${data.d_date || '-'}</span>` : (data.d_date || '-');
-            const lVesselContent = isLPast ? `<span class="past-date-box">${data.l_vessel || '-'}</span>` : (data.l_vessel || '-');
-            const lDateContent = isLPast ? `<span class="past-date-box">${data.l_date || '-'}</span>` : (data.l_date || '-');
+            const dVesselContent = isDUpcoming ? `<span class="past-date-box">${data.d_vessel || '-'}</span>` : (data.d_vessel || '-');
+            const dDateContent = isDUpcoming ? `<span class="past-date-box">${data.d_date || '-'}</span>` : (data.d_date || '-');
+            const lVesselContent = isLUpcoming ? `<span class="past-date-box">${data.l_vessel || '-'}</span>` : (data.l_vessel || '-');
+            const lDateContent = isLUpcoming ? `<span class="past-date-box">${data.l_date || '-'}</span>` : (data.l_date || '-');
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -839,14 +839,17 @@ function updateLedTicker(records) {
             const parts = dateStr.split('-');
             if (parts.length === 3) {
                 const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                const diffDays = Math.abs((targetDate - today) / (1000 * 60 * 60 * 24));
-                validRecords.push({
-                    vessel: (dateStr === r.d_date ? r.d_vessel : r.l_vessel) || 'N/A',
-                    date: dateStr,
-                    bl: r.bl_no || 'N/A',
-                    container: r.container_no || 'N/A',
-                    diff: diffDays
-                });
+                // Only upcoming dates (today or future)
+                if (targetDate >= today) {
+                    const diffDays = Math.abs((targetDate - today) / (1000 * 60 * 60 * 24));
+                    validRecords.push({
+                        vessel: (dateStr === r.d_date ? r.d_vessel : r.l_vessel) || 'N/A',
+                        date: dateStr,
+                        bl: r.bl_no || 'N/A',
+                        container: r.container_no || 'N/A',
+                        diff: diffDays
+                    });
+                }
             }
         });
     });
@@ -886,7 +889,7 @@ function updateLedTicker(records) {
 /**
  * Date Helpers
  */
-function isPastDate(dateStr) {
+function isUpcomingDate(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return false;
     // Handle YYYY-MM-DD format explicitly as local time to avoid UTC shifts
     const parts = dateStr.split('-');
@@ -896,7 +899,7 @@ function isPastDate(dateStr) {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // start of today (local time)
 
-    return targetDate < today;
+    return targetDate >= today;
 }
 
 function toggleDropdown(trigger) {
