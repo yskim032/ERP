@@ -56,6 +56,7 @@ let ledRotationIndex = 0;
 let ledRecords = [];
 let ledInterval = null;
 let boardEntries = []; // Message board storage
+let collapsedStates = {}; // Track collapsed/expanded state of replies
 
 // --- Functions ---
 
@@ -696,11 +697,41 @@ async function handleLiveSchedule() {
             return;
         }
 
-        renderScheduleTable(rows);
+        // Save to Firebase
+        try {
+            await db.collection('app_settings').doc('live_schedule').set({
+                rows: rows,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            showToast("✅ Schedule updated & saved to cloud!");
+        } catch (e) {
+            console.error("Firebase save error:", e);
+            showToast("❌ Failed to save schedule to cloud.");
+        }
     } catch (err) {
         console.error("Clipboard error:", err);
         showToast("❌ Permission denied or clipboard error.");
     }
+}
+
+function loadLiveSchedule() {
+    db.collection('app_settings').doc('live_schedule').onSnapshot(doc => {
+        if (doc.exists) {
+            const data = doc.data();
+            if (data.rows && Array.isArray(data.rows)) {
+                renderScheduleTable(data.rows);
+
+                if (data.updatedAt) {
+                    const date = new Date(data.updatedAt.seconds * 1000);
+                    const timeStr = date.toLocaleString();
+                    document.getElementById('schedule-time').textContent = timeStr;
+                    document.getElementById('schedule-update-info').style.display = 'block';
+                }
+            }
+        }
+    }, error => {
+        console.error("Schedule load error:", error);
+    });
 }
 
 function normalizeScheduleDate(dateStr) {
@@ -744,7 +775,7 @@ async function renderScheduleTable(rows) {
     }));
 
     applyScheduleFilter(false); // Show all by default
-    showToast(`✅ Loaded ${rows.length} schedule items.`);
+    // Toast moved to save success/load
 }
 
 function applyScheduleFilter(showOnlyMatches) {
@@ -1162,6 +1193,14 @@ function removeReplyById(replies, targetId) {
     }));
 }
 
+/**
+ * Toggle reply visibility
+ */
+function toggleReplies(messageId) {
+    collapsedStates[messageId] = !collapsedStates[messageId];
+    renderBoard();
+}
+
 function renderBoard() {
     if (!boardList) return;
 
@@ -1196,6 +1235,27 @@ function renderBoard() {
             ${entry.animateRTL ? `animation-duration: ${entry.scrollSpeed || 15}s;` : ''}
         `.replace(/\n/g, '').trim();
 
+        // Recursively count replies and check for new ones
+        const countReplies = (list) => {
+            if (!list || list.length === 0) return 0;
+            return list.reduce((acc, curr) => acc + 1 + countReplies(curr.replies), 0);
+        };
+        const totalReplies = countReplies(entry.replies);
+
+        const hasNewReply = (list) => {
+            if (!list || list.length === 0) return false;
+            return list.some(r => {
+                const rTime = r.timestamp?.seconds ? r.timestamp.seconds * 1000 : r.timestamp ? new Date(r.timestamp).getTime() : 0;
+                return (now - rTime < oneHourInMs) || hasNewReply(r.replies);
+            });
+        };
+        const showNewBadge = hasNewReply(entry.replies);
+
+        // Collapse logic
+        const isCollapsed = collapsedStates[entry.id] || false;
+        const toggleBtnText = isCollapsed ? 'O' : '-';
+        const toggleBtnClass = isCollapsed ? 'btn-board-toggle collapsed' : 'btn-board-toggle';
+
         // Render replies recursively
         const repliesHtml = entry.replies ? renderReplies(entry.replies, entry.id, 0) : '';
 
@@ -1208,12 +1268,17 @@ function renderBoard() {
                         ${entry.text}
                     </span>
                 </div>
-                <div style="display: flex; gap: 4px;">
+                <div style="display: flex; gap: 4px; align-items: center;">
                     ${!entry.isPinned ? `<button class="btn-board-reply" onclick="showReplyForm('${entry.id}')" title="Reply">R</button>` : ''}
+                    ${totalReplies > 0 ? `
+                        <button class="${toggleBtnClass}" onclick="toggleReplies('${entry.id}')" title="Toggle Replies">${toggleBtnText}</button>
+                        <span class="reply-count">(${totalReplies})</span>
+                        ${showNewBadge ? '<span class="new-reply-badge">New</span>' : ''}
+                    ` : ''}
                     <button class="btn-board-delete" onclick="deleteBoardMessage('${entry.id}')" title="Delete message">×</button>
                 </div>
                 <div id="reply-form-${entry.id}" style="display: none; grid-column: 1 / -1;"></div>
-                ${repliesHtml ? `<div class="replies-container" style="grid-column: 1 / -1;">${repliesHtml}</div>` : ''}
+                ${repliesHtml && !isCollapsed ? `<div class="replies-container" style="grid-column: 1 / -1;">${repliesHtml}</div>` : ''}
             </div>
         `;
     }).join('');
@@ -1302,3 +1367,4 @@ boardText.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBoard
 createRow();
 fetchAllRecords();
 loadBoard();
+loadLiveSchedule();

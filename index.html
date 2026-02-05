@@ -168,10 +168,15 @@
         <section class="live-schedule-section glass">
             <div class="section-header">
                 <h2>Live Schedule</h2>
-                <div class="actions" style="display: flex; gap: 8px; align-items: center;">
+                <div class="actions"
+                    style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
                     <button id="btn-schedule-case-only" class="btn-small filter-btn">Show case only</button>
                     <button id="btn-schedule-show-all" class="btn-small filter-btn">Show all</button>
-                    <button id="btn-live-schedule" class="btn-primary">📥 LIVE SCHEDULE</button>
+                    <button id="btn-live-schedule" class="btn-small filter-btn">LIVE SCHEDULE</button>
+                    <div id="schedule-update-info" class="timestamp-display"
+                        style="display:none; width: 100%; text-align: right; margin-top: 4px;">
+                        Last updated: <span id="schedule-time">-</span>
+                    </div>
                 </div>
             </div>
             <div class="schedule-table-wrapper">
