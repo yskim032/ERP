@@ -745,6 +745,42 @@ button {
     color: var(--msc-yellow);
 }
 
+/* --- Table Styles --- */
+.table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.table-container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.table-container table th {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--msc-yellow);
+    font-weight: 700;
+    text-align: left;
+    padding: 6px 10px;
+    /* Reduced from default ~12px */
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+}
+
+.table-container table td {
+    padding: 4px 10px;
+    /* Reduced from default ~12px */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-white);
+    vertical-align: middle;
+    /* Ensure content is centered vertically */
+}
+
+.table-container table tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
 /* --- Misc --- */
 .empty-state {
     text-align: center;
