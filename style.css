@@ -492,9 +492,9 @@ input:focus {
     position: relative;
 }
 
-.custom-select-trigger:after {
-    content: '??;
- font-size: 0.5rem;
+.custom-select-trigger::after {
+    content: '\25BC';
+    font-size: 0.5rem;
     margin-left: 5px;
     opacity: 0.5;
 }
@@ -790,19 +790,26 @@ button {
 .table-container button,
 .table-container .btn-small,
 .table-container .btn-delete,
-.table-container .type-tag {
+.table-container .btn-delete-db,
+.table-container .type-tag,
+.table-container .type-badge {
     padding: 1px 6px !important;
     font-size: 0.75rem !important;
-    line-height: 1.2 !important;
+    line-height: normal !important;
     height: auto !important;
     min-height: unset !important;
     border-radius: 2px !important;
     margin: 0 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
 }
 
-.table-container .btn-delete {
+.table-container .btn-delete,
+.table-container .btn-delete-db {
     font-size: 0.9rem !important;
     /* Keep delete icon visible */
+    background: transparent !important;
+    color: #ef4444 !important;
 }
 
 /* --- Misc --- */
@@ -1134,6 +1141,27 @@ button {
 .led-orange {
     color: #ff8800;
     text-shadow: 0 0 10px #ff8800, 0 0 20px #ff8800;
+}
+
+.rainbow-text {
+    background: linear-gradient(to right,
+            #ff3333, #ff9933, #ffff33, #33ff33, #33ffff, #cc33ff, #ff3333);
+    background-size: 200% auto;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    /* Removed blurry shadow to keep text sharp */
+    text-shadow: none;
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
+    /* Sharp subtle glow instead */
+    animation: rainbow-scroll 3s linear infinite;
+    display: inline-block;
+}
+
+@keyframes rainbow-scroll {
+    to {
+        background-position: 200% center;
+    }
 }
 
 /* Past Date Highlighting */
@@ -1528,8 +1556,9 @@ button {
     box-shadow: inset 0 0 15px rgba(255, 204, 0, 0.1);
 }
 
-.board-item.pinned .nickname:before {
-    content: '?뱦 ';
+.board-item.pinned .nickname::before {
+    content: '\1F4CC';
+    margin-right: 5px;
 }
 
 

@@ -51,12 +51,16 @@ const boardList = document.getElementById('board-list');
 
 // --- State ---
 let rowCount = 0;
+let rawScheduleData = []; // Store raw schedule for date matching
 let allScheduleRows = []; // Cache for Live Schedule filtering
+let scheduleSortState = []; // [{ column: 'arrival'|'service', order: 'asc'|'desc' }]
 let ledRotationIndex = 0;
 let ledRecords = [];
 let ledInterval = null;
 let boardEntries = []; // Message board storage
 let collapsedStates = {}; // Track collapsed/expanded state of replies
+let allDbRecords = []; // Cache for DB sorting
+let dbSortState = []; // [{ column: 'pol'|'pod'|..., order: 'asc'|'desc' }]
 
 // --- Functions ---
 
@@ -491,79 +495,171 @@ async function quickSave(docId, card) {
 }
 
 /**
+ * Multi-column Sort Logic for Master Database
+ */
+function handleDbHeaderClick(column) {
+    const existingIndex = dbSortState.findIndex(s => s.column === column);
+
+    if (existingIndex !== -1) {
+        const currentOrder = dbSortState[existingIndex].order;
+        if (currentOrder === 'asc') {
+            dbSortState[existingIndex].order = 'desc';
+        } else {
+            dbSortState.splice(existingIndex, 1);
+        }
+    } else {
+        dbSortState.push({ column: column, order: 'asc' });
+    }
+
+    // Since we already have allDbRecords, just re-render
+    fetchAllRecords(true);
+}
+
+function applyDbSort(records) {
+    if (dbSortState.length === 0) {
+        // Default to timestamp desc if no sort specified
+        return [...records].sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+    }
+
+    return [...records].sort((a, b) => {
+        for (const sort of dbSortState) {
+            let valA = a[sort.column] || '';
+            let valB = b[sort.column] || '';
+
+            // Handle special mapping if column names differ from DB field names
+            // Actually they mostly match our implementation
+
+            let comparison = 0;
+            if (typeof valA === 'string') {
+                comparison = valA.toUpperCase().localeCompare(valB.toUpperCase());
+            } else if (sort.column === 'timestamp') {
+                valA = a.timestamp?.seconds || 0;
+                valB = b.timestamp?.seconds || 0;
+                comparison = valA - valB;
+            } else {
+                comparison = valA < valB ? -1 : (valA > valB ? 1 : 0);
+            }
+
+            if (comparison !== 0) {
+                return sort.order === 'asc' ? comparison : -comparison;
+            }
+        }
+        return 0;
+    });
+}
+
+function getDbSortIndicator(column) {
+    const sort = dbSortState.find(s => s.column === column);
+    if (!sort) return '';
+    return sort.order === 'asc' ? ' ▲' : ' ▼';
+}
+
+/**
  * Fetch and Display All Records
  */
-async function fetchAllRecords() {
-    dbTbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:2rem;">Loading Master Database...</td></tr>';
-
-    try {
-        const snapshot = await db.collection("erp_v2")
-            .orderBy("timestamp", "desc")
-            .get();
-
-        dbTbody.innerHTML = "";
-
-        let countTotal = snapshot.size;
-        let countE = 0;
-        let countI = 0;
-        let countT = 0;
-
-        const typeMap = { 'E': 'Local Export', 'I': 'Local Import', 'T': 'T/S' };
-
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-
-            // Increment type counts
-            if (data.type === 'E') countE++;
-            else if (data.type === 'I') countI++;
-            else if (data.type === 'T') countT++;
-
-            const dateStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : '-';
-
-            const isDUpcoming = isUpcomingDate(data.d_date);
-            const isLUpcoming = isUpcomingDate(data.l_date);
-
-            const dVesselContent = isDUpcoming ? `<span class="past-date-box">${data.d_vessel || '-'}</span>` : (data.d_vessel || '-');
-            const dDateContent = isDUpcoming ? `<span class="past-date-box">${data.d_date || '-'}</span>` : (data.d_date || '-');
-            const lVesselContent = isLUpcoming ? `<span class="past-date-box">${data.l_vessel || '-'}</span>` : (data.l_vessel || '-');
-            const lDateContent = isLUpcoming ? `<span class="past-date-box">${data.l_date || '-'}</span>` : (data.l_date || '-');
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><span class="type-badge badge-${data.type?.toLowerCase()}">${data.type || 'E'}</span></td>
-                <td>${data.pol || '-'}</td>
-                <td>${data.pod || '-'}</td>
-                <td>${data.bl_no || '-'}</td>
-                <td style="color:var(--msc-yellow); font-weight:700;">${data.container_no || '-'}</td>
-                <td>${dVesselContent}</td>
-                <td>${dDateContent}</td>
-                <td>${lVesselContent}</td>
-                <td>${lDateContent}</td>
-                <td style="color:var(--accent-yellow);">${data.item_name || '-'}</td>
-                <td>${data.remark || '-'}</td>
-                <td>${data.pdf_url ? `<a href="${data.pdf_url}" target="_blank" title="View PDF">📄</a>` : '-'}</td>
-                <td class="timestamp">${dateStr}</td>
-                <td>
-                    <button class="btn-delete-db" onclick="deleteRecord('${doc.id}')">D</button>
-                </td>
-            `;
-            dbTbody.appendChild(tr);
-        });
-
-        updateLedTicker(snapshot.docs.map(d => d.data()));
-
-        // Update count UI
-        dbCount.textContent = countTotal;
-        if (dbCountE) dbCountE.textContent = countE;
-        if (dbCountI) dbCountI.textContent = countI;
-        if (dbCountT) dbCountT.textContent = countT;
-
-        if (countTotal === 0) {
-            dbTbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:2rem;">No records in database.</td></tr>';
+async function fetchAllRecords(isReRender = false) {
+    if (!isReRender) {
+        dbTbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:2rem;">Loading Master Database...</td></tr>';
+        try {
+            const snapshot = await db.collection("erp_v2")
+                .orderBy("timestamp", "desc")
+                .get();
+            allDbRecords = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        } catch (error) {
+            console.error("Fetch error:", error);
+            dbTbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#ef4444;">Failed to load database.</td></tr>';
+            return;
         }
-    } catch (error) {
-        console.error("Fetch error:", error);
-        dbTbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#ef4444;">Failed to load database.</td></tr>';
+    }
+
+    // Apply Sort
+    const sortedRecords = applyDbSort(allDbRecords);
+
+    dbTbody.innerHTML = "";
+
+    let countTotal = sortedRecords.length;
+    let countE = 0;
+    let countI = 0;
+    let countT = 0;
+
+    // Update Headers
+    const dbThead = document.querySelector('.full-db-table thead tr');
+    if (dbThead) {
+        const headers = dbThead.querySelectorAll('th');
+        // Index 0 is Type (Skip), Index 1 to 12 are sortable, Index 13 is Delete (Skip)
+        const sortableColumns = [
+            { idx: 1, key: 'pol', label: 'POL' },
+            { idx: 2, key: 'pod', label: 'POD' },
+            { idx: 3, key: 'bl_no', label: 'BL No.' },
+            { idx: 4, key: 'container_no', label: 'Container' },
+            { idx: 5, key: 'd_vessel', label: 'D-Vessel' },
+            { idx: 6, key: 'd_date', label: 'D-Date' },
+            { idx: 7, key: 'l_vessel', label: 'L-Vessel' },
+            { idx: 8, key: 'l_date', label: 'L-Date' },
+            { idx: 9, key: 'item_name', label: 'Item' },
+            { idx: 10, key: 'remark', label: 'Remark' },
+            { idx: 11, key: 'pdf_url', label: 'PDF' },
+            { idx: 12, key: 'timestamp', label: 'Synced' }
+        ];
+
+        sortableColumns.forEach(sc => {
+            if (headers[sc.idx]) {
+                headers[sc.idx].innerHTML = `${sc.label}${getDbSortIndicator(sc.key)}`;
+                headers[sc.idx].style.cursor = 'pointer';
+                headers[sc.idx].onclick = () => handleDbHeaderClick(sc.key);
+                headers[sc.idx].title = "Click to sort (Asc -> Desc -> None)";
+            }
+        });
+    }
+
+    sortedRecords.forEach(data => {
+        // Increment type counts
+        if (data.type === 'E') countE++;
+        else if (data.type === 'I') countI++;
+        else if (data.type === 'T') countT++;
+
+        const dateStr = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : '-';
+
+        const isDUpcoming = isUpcomingDate(data.d_date);
+        const isLUpcoming = isUpcomingDate(data.l_date);
+
+        const dVesselContent = isDUpcoming ? `<span class="past-date-box">${data.d_vessel || '-'}</span>` : (data.d_vessel || '-');
+        const dDateContent = isDUpcoming ? `<span class="past-date-box">${data.d_date || '-'}</span>` : (data.d_date || '-');
+        const lVesselContent = isLUpcoming ? `<span class="past-date-box">${data.l_vessel || '-'}</span>` : (data.l_vessel || '-');
+        const lDateContent = isLUpcoming ? `<span class="past-date-box">${data.l_date || '-'}</span>` : (data.l_date || '-');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span class="type-badge badge-${data.type?.toLowerCase()}">${data.type || 'E'}</span></td>
+            <td>${data.pol || '-'}</td>
+            <td>${data.pod || '-'}</td>
+            <td>${data.bl_no || '-'}</td>
+            <td style="color:var(--msc-yellow); font-weight:700;">${data.container_no || '-'}</td>
+            <td>${dVesselContent}</td>
+            <td>${dDateContent}</td>
+            <td>${lVesselContent}</td>
+            <td>${lDateContent}</td>
+            <td style="color:var(--accent-yellow);">${data.item_name || '-'}</td>
+            <td>${data.remark || '-'}</td>
+            <td>${data.pdf_url ? `<a href="${data.pdf_url}" target="_blank" title="View PDF">📄</a>` : '-'}</td>
+            <td class="timestamp">${dateStr}</td>
+            <td>
+                <button class="btn-delete-db" onclick="deleteRecord('${data.id}')">D</button>
+            </td>
+        `;
+        dbTbody.appendChild(tr);
+    });
+
+    updateLedTicker(sortedRecords);
+
+    // Update count UI
+    dbCount.textContent = countTotal;
+    if (dbCountE) dbCountE.textContent = countE;
+    if (dbCountI) dbCountI.textContent = countI;
+    if (dbCountT) dbCountT.textContent = countT;
+
+    if (countTotal === 0) {
+        dbTbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:2rem;">No records in database.</td></tr>';
     }
 }
 
@@ -580,6 +676,105 @@ async function deleteRecord(docId) {
     } catch (error) {
         console.error("Delete error:", error);
         showToast("❌ Delete failed.");
+    }
+}
+
+/**
+ * Syncs D-Date/L-Date with Live Schedule Arrival
+ */
+async function syncScheduleDates() {
+    if (!rawScheduleData || rawScheduleData.length === 0) return;
+
+    // Create lookup map: Vessel Name -> Arrival Date
+    // Using Map to handle duplicates (last one wins or we could be smarter)
+    // rawScheduleData has: displayVessel (e.g. "MSC ARIANE AB123") and arrival (e.g. "2026-01-30")
+    const dateMap = new Map();
+    rawScheduleData.forEach(row => {
+        // Normalize: remove extra spaces, uppercase
+        const key = row.displayVessel.trim().toUpperCase();
+        if (row.arrival && row.arrival !== '-') {
+            dateMap.set(key, row.arrival);
+        }
+    });
+
+    if (dateMap.size === 0) return;
+
+    try {
+        const snapshot = await db.collection("erp_v2").get();
+        if (snapshot.empty) return;
+
+        const batch = db.batch();
+        let updateCount = 0;
+
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            let needsUpdate = false;
+            let updates = {};
+
+            const normalizeName = (name) => {
+                if (!name) return "";
+                return name.toUpperCase()
+                    .replace(/[(\[]/g, " ") // Replace opening parens with space
+                    .replace(/[)\]]/g, " ") // Replace closing parens with space
+                    .replace(/\s+/g, " ")   // Collapse multiple spaces
+                    .trim();
+            };
+
+            const findMatch = (dbVesselName) => {
+                if (!dbVesselName) return null;
+                const normalizedDbName = normalizeName(dbVesselName);
+
+                // 1. Direct match with normalized keys
+                for (const [key, date] of dateMap.entries()) {
+                    if (normalizeName(key) === normalizedDbName) return date;
+                }
+
+                // 2. Contains match (if DB has "VESSEL (VOY)" and Schedule has "VESSEL VOY")
+                for (const [key, date] of dateMap.entries()) {
+                    const normKey = normalizeName(key);
+                    // Check if one contains the other (robust fallback)
+                    if (normKey.includes(normalizedDbName) || normalizedDbName.includes(normKey)) {
+                        return date;
+                    }
+                }
+                return null;
+            };
+
+            // Check D-Vessel
+            if (data.d_vessel) {
+                const matchDate = findMatch(data.d_vessel);
+                if (matchDate && matchDate !== data.d_date) {
+                    updates.d_date = matchDate;
+                    needsUpdate = true;
+                }
+            }
+
+            // Check L-Vessel
+            if (data.l_vessel) {
+                const matchDate = findMatch(data.l_vessel);
+                if (matchDate && matchDate !== data.l_date) {
+                    updates.l_date = matchDate;
+                    needsUpdate = true;
+                }
+            }
+
+            if (needsUpdate) {
+                const docRef = db.collection("erp_v2").doc(doc.id);
+                batch.update(docRef, updates);
+                updateCount++;
+            }
+        });
+
+        if (updateCount > 0) {
+            await batch.commit();
+            showToast(`🔄 Synced dates for ${updateCount} records.`);
+        } else {
+            showToast("✅ Dates are already up to date.");
+        }
+
+    } catch (error) {
+        console.error("Date sync error:", error);
+        showToast("❌ Failed to sync dates.");
     }
 }
 
@@ -719,6 +914,7 @@ function loadLiveSchedule() {
         if (doc.exists) {
             const data = doc.data();
             if (data.rows && Array.isArray(data.rows)) {
+                rawScheduleData = data.rows; // Store for matching
                 renderScheduleTable(data.rows);
 
                 if (data.updatedAt) {
@@ -744,58 +940,201 @@ function normalizeScheduleDate(dateStr) {
     return dateStr;
 }
 
-async function renderScheduleTable(rows) {
-    scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Processing...</td></tr>';
-    allScheduleRows = []; // Clear previous cache
+/**
+ * Multi-column Sort Logic for Live Schedule
+ */
+function handleHeaderClick(column) {
+    // Check if column is already in sort state
+    const existingIndex = scheduleSortState.findIndex(s => s.column === column);
 
-    allScheduleRows = await Promise.all(rows.map(async (row) => {
-        const matches = await matchVesselRecords(row.searchVessel);
-        const badges = matches.map(m => `
-            <span class="spare-badge badge-${m.type.toLowerCase()}" 
-                  onclick='showRecordDetail(${JSON.stringify(m).replace(/'/g, "&apos;")})'
-                  title="Click to view details">
-                ${m.type}
-            </span>
-        `).join('');
+    if (existingIndex !== -1) {
+        // Cycle: Asc -> Desc -> Remove
+        const currentOrder = scheduleSortState[existingIndex].order;
+        if (currentOrder === 'asc') {
+            scheduleSortState[existingIndex].order = 'desc';
+        } else {
+            // Remove from sort
+            scheduleSortState.splice(existingIndex, 1);
+        }
+    } else {
+        // Add new sort criteria
+        scheduleSortState.push({ column: column, order: 'asc' });
+    }
 
-        const html = `
+    // Re-render
+    renderScheduleTable(rawScheduleData, true); // true = use existing data, reshuffle
+}
+
+function applyScheduleSort(rows) {
+    if (scheduleSortState.length === 0) return rows;
+
+    return [...rows].sort((a, b) => {
+        for (const sort of scheduleSortState) {
+            let valA, valB;
+
+            if (sort.column === 'arrival') {
+                valA = a.arrival;
+                valB = b.arrival;
+            } else if (sort.column === 'vessel') {
+                valA = a.displayVessel;
+                valB = b.displayVessel;
+            } else {
+                valA = a.service;
+                valB = b.service;
+            }
+
+            // Handle empty values
+            if (valA === '-' || !valA) valA = '';
+            if (valB === '-' || !valB) valB = '';
+
+            let comparison = 0;
+            if (sort.column === 'arrival') {
+                // Date sort (string comparison works for YYYY-MM-DD but let's be safe)
+                comparison = valA.localeCompare(valB);
+            } else {
+                // String sort
+                comparison = valA.localeCompare(valB);
+            }
+
+            if (comparison !== 0) {
+                return sort.order === 'asc' ? comparison : -comparison;
+            }
+        }
+        return 0;
+    });
+}
+
+function getSortIndicator(column) {
+    const sort = scheduleSortState.find(s => s.column === column);
+    if (!sort) return '';
+    return sort.order === 'asc' ? ' ▲' : ' ▼';
+}
+
+async function renderScheduleTable(rows, isReRender = false) {
+    if (!isReRender) {
+        // Initial load or normal update
+        scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Processing...</td></tr>';
+
+        // Process matches (expensive operation)
+        const processedRows = await Promise.all(rows.map(async (row) => {
+            const matches = await matchVesselRecords(row.searchVessel);
+
+            // Create badge HTML
+            const badges = matches.map(m => `
+                <span class="spare-badge badge-${m.type.toLowerCase()}" 
+                      onclick='showRecordDetail(${JSON.stringify(m).replace(/'/g, "&apos;")})'
+                      title="Click to view details">
+                    ${m.type}
+                </span>
+            `).join('');
+
+            return {
+                ...row,
+                matches: matches,
+                badgesHtml: badges,
+                hasMatches: matches.length > 0
+            };
+        }));
+
+        allScheduleRows = processedRows;
+    }
+
+    // Apply Sort
+    const sortedRows = applyScheduleSort(allScheduleRows);
+
+    // Update Headers
+    const thead = document.querySelector('.msc-table thead tr');
+    if (thead) {
+        const headers = thead.querySelectorAll('th');
+        // Index 0 is Vessel, Index 1 is Arrival, Index 3 is Service
+        if (headers[0]) {
+            headers[0].innerHTML = `Vessel (Voyage)${getSortIndicator('vessel')}`;
+            headers[0].style.cursor = 'pointer';
+            headers[0].onclick = () => handleHeaderClick('vessel');
+            headers[0].title = "Click to sort (Asc -> Desc -> None)";
+        }
+        if (headers[1]) {
+            headers[1].innerHTML = `Arrival (Berth)${getSortIndicator('arrival')}`;
+            headers[1].style.cursor = 'pointer';
+            headers[1].onclick = () => handleHeaderClick('arrival');
+            headers[1].title = "Click to sort (Asc -> Desc -> None)";
+        }
+        if (headers[3]) {
+            headers[3].innerHTML = `Service${getSortIndicator('service')}`;
+            headers[3].style.cursor = 'pointer';
+            headers[3].onclick = () => handleHeaderClick('service');
+            headers[3].title = "Click to sort (Asc -> Desc -> None)";
+        }
+    }
+
+    // Render Rows
+    if (sortedRows.length === 0) {
+        scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; opacity:0.5;">No data found.</td></tr>';
+    } else {
+        scheduleTbody.innerHTML = sortedRows.map(row => `
             <tr>
                 <td style="color:var(--msc-yellow); font-weight:700;">${row.displayVessel}</td>
                 <td>${row.arrival}</td>
                 <td>${row.departure}</td>
                 <td style="font-size:0.8rem;">${row.service}</td>
-                <td>${badges || '<span style="opacity:0.3">-</span>'}</td>
+                <td>${row.badgesHtml || '<span style="opacity:0.3">-</span>'}</td>
             </tr>
-        `;
+        `).join('');
+    }
 
-        return {
-            html: html,
-            hasMatches: matches.length > 0
-        };
-    }));
+    // Re-apply filter if needed (visual only, data is already sorted)
+    // We might need to split applyScheduleFilter to handle sorted data
+    // For now, let's just make sure filter buttons work on the SORTED data
 
-    applyScheduleFilter(false); // Show all by default
-    // Toast moved to save success/load
+    // Actually, applyScheduleFilter uses allScheduleRows global
+    // We should update the global allScheduleRows? No, that clears the match data
+    // let's update applyScheduleFilter to use the sorted result?
+
+    // Better approach: applyFilter should filter the *sorted* rows.
+    // Let's modify applyScheduleFilter to accept rows or use a sorted cache?
+
+    // IMPORTANT: applyScheduleFilter is simple. Let's just re-run it?
+    // But applyScheduleFilter operates on `allScheduleRows` which is the SOURCE.
+    // If we want the VIEW to be sorted, we should render the SORTED output.
+    // The logic above renders directly to innerHTML.
+
+    // Wait, `applyScheduleFilter` is called at the end of `renderScheduleTable`.
+    // Let's replace that call or integrate it.
+
+    // Let's NOT call applyScheduleFilter(false) blindly at the end.
+    // Because we just rendered sortedRows manually above.
+    // If we have an active filter, we should respect it.
+
+    // Check active filter button state?
+    const isShowingMatchesOnly = btnScheduleCaseOnly.style.opacity === "1";
+
+    if (isShowingMatchesOnly) {
+        const filtered = sortedRows.filter(r => r.hasMatches);
+        if (filtered.length === 0) {
+            scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; opacity:0.5;">No matching spare cases found.</td></tr>';
+        } else {
+            scheduleTbody.innerHTML = filtered.map(row => `
+                <tr>
+                    <td style="color:var(--msc-yellow); font-weight:700;">${row.displayVessel}</td>
+                    <td>${row.arrival}</td>
+                    <td>${row.departure}</td>
+                    <td style="font-size:0.8rem;">${row.service}</td>
+                    <td>${row.badgesHtml || '<span style="opacity:0.3">-</span>'}</td>
+                </tr>
+            `).join('');
+        }
+    }
 }
 
 function applyScheduleFilter(showOnlyMatches) {
-    if (allScheduleRows.length === 0) return;
-
-    const filtered = showOnlyMatches
-        ? allScheduleRows.filter(r => r.hasMatches)
-        : allScheduleRows;
-
-    if (filtered.length === 0 && showOnlyMatches) {
-        scheduleTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; opacity:0.5;">No matching spare cases found.</td></tr>';
-    } else {
-        scheduleTbody.innerHTML = filtered.map(r => r.html).join('');
-    }
-
-    // Update button active state
+    // Update button visual state
     btnScheduleCaseOnly.style.opacity = showOnlyMatches ? "1" : "0.5";
     btnScheduleCaseOnly.style.boxShadow = showOnlyMatches ? "0 0 15px var(--msc-yellow)" : "none";
     btnScheduleShowAll.style.opacity = showOnlyMatches ? "0.5" : "1";
     btnScheduleShowAll.style.boxShadow = showOnlyMatches ? "none" : "0 0 15px var(--msc-yellow)";
+
+    // Re-render to apply sort AND filter
+    renderScheduleTable(rawScheduleData, true);
 }
 
 async function matchVesselRecords(vesselName) {
@@ -878,51 +1217,57 @@ function updateLedTicker(records) {
 
     const validRecords = [];
     records.forEach(r => {
-        const dates = [r.d_date, r.l_date].filter(d => d);
-        dates.forEach(dateStr => {
-            const parts = dateStr.split('-');
+        // Check both D-Date and L-Date
+        const dates = [
+            { date: r.d_date, vessel: r.d_vessel, type: 'D' },
+            { date: r.l_date, vessel: r.l_vessel, type: 'L' }
+        ].filter(item => item.date);
+
+        dates.forEach(item => {
+            const parts = item.date.split('-');
             if (parts.length === 3) {
                 const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                // Only upcoming dates (today or future)
-                if (targetDate >= today) {
-                    const diffDays = Math.abs((targetDate - today) / (1000 * 60 * 60 * 24));
+                targetDate.setHours(0, 0, 0, 0);
+
+                const diffTime = targetDate - today;
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                // Criteria: Today (D-DAY) to 3 days future (D-1, D-2, D-3)
+                if (diffDays >= 0 && diffDays <= 3) {
+                    const dTag = diffDays === 0 ? "D-DAY" : `D-${diffDays}`;
                     validRecords.push({
-                        vessel: (dateStr === r.d_date ? r.d_vessel : r.l_vessel) || 'N/A',
-                        date: dateStr,
-                        bl: r.bl_no || 'N/A',
+                        dTag: dTag,
+                        vessel: item.vessel || 'N/A',
+                        date: item.date,
                         container: r.container_no || 'N/A',
-                        diff: diffDays
+                        diffDays: diffDays
                     });
                 }
             }
         });
     });
 
-    // Sort by proximity and take top 3
-    ledRecords = validRecords.sort((a, b) => a.diff - b.diff).slice(0, 3);
+    // Sort by proximity
+    const sortedUrgent = validRecords.sort((a, b) => a.diffDays - b.diffDays);
 
-    if (ledRecords.length === 0) {
-        ledText.innerHTML = "No upcoming shipments found.";
+    if (sortedUrgent.length === 0) {
+        ledText.innerHTML = '<div class="led-text-item led-green">No urgent shipments (D-Day to D-3).</div>';
         ledText.className = "led-text led-green";
         return;
     }
 
-    // Colors to cycle through in the ribbon
-    const colors = ['led-green', 'led-yellow', 'led-orange'];
-
-    // Create the message ribbon (one set of messages)
-    const ribbonHtml = ledRecords.map((record, idx) => {
-        const colorClass = colors[idx % colors.length];
+    // Create the message ribbon
+    const ribbonHtml = sortedUrgent.map(record => {
         return `
-            <div class="led-text-item ${colorClass}">
-                🚨 URGENT: [${record.vessel}] [${record.date}] BL:[${record.bl}] CNTR:[${record.container}] - PLEASE PROCESS ASAP 🚨
+            <div class="led-text-item rainbow-text">
+                [${record.dTag}] ${record.vessel} | ${record.date} | ${record.container}
             </div>
         `;
     }).join('');
 
-    // Double the content for a seamless CSS looping animation (0% -> -50%)
+    // Double the content for a seamless CSS looping animation
     ledText.innerHTML = ribbonHtml + ribbonHtml;
-    ledText.className = "led-text"; // Remove specific color from parent
+    ledText.className = "led-text";
 
     // Restart animation
     ledText.style.animation = 'none';
@@ -1350,7 +1695,10 @@ btnPodSearch.addEventListener('click', () => performSearch('pod'));
 globalSearch.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch('global'); });
 polSearch.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch('pol'); });
 podSearch.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch('pod'); });
-btnRefreshDb.addEventListener('click', fetchAllRecords);
+btnRefreshDb.addEventListener('click', async () => {
+    await syncScheduleDates();
+    fetchAllRecords();
+});
 
 btnShowSetup.addEventListener('click', showSetupModal);
 btnCloseSetup.addEventListener('click', closeSetupModal);
