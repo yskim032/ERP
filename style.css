@@ -762,23 +762,47 @@ button {
     color: var(--msc-yellow);
     font-weight: 700;
     text-align: left;
-    padding: 6px 10px;
-    /* Reduced from default ~12px */
+    padding: 4px 6px;
+    /* Further reduced */
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
     white-space: nowrap;
+    height: 30px;
+    /* Force smaller header height */
+    line-height: normal;
 }
 
 .table-container table td {
-    padding: 4px 10px;
-    /* Reduced from default ~12px */
+    padding: 2px 6px;
+    /* Minimal padding */
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: var(--text-white);
     vertical-align: middle;
-    /* Ensure content is centered vertically */
+    height: 24px;
+    /* Force minimal row height */
+    line-height: normal;
 }
 
 .table-container table tr:hover {
     background: rgba(255, 255, 255, 0.03);
+}
+
+/* Compact Buttons inside Table */
+.table-container button,
+.table-container .btn-small,
+.table-container .btn-delete,
+.table-container .type-tag {
+    padding: 1px 6px !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+    height: auto !important;
+    min-height: unset !important;
+    border-radius: 2px !important;
+    margin: 0 !important;
+}
+
+.table-container .btn-delete {
+    font-size: 0.9rem !important;
+    /* Keep delete icon visible */
 }
 
 /* --- Misc --- */
